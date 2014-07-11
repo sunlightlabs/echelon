@@ -1,4 +1,14 @@
-echelon
-=======
+# echelon
 
-library for ingesting and storing itemized data. also reconciles entities and assigns unique IDs.
+A Clojure library designed to ... well, that part is up to you.
+
+## Usage
+
+FIXME
+
+## License
+
+Copyright © 2014 FIXME
+
+Distributed under the Eclipse Public License either version 1.0 or (at
+your option) any later version.
