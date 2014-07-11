@@ -1,14 +1,11 @@
 # echelon
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure application for ingesting and storing itemized data. Also reconciles entities and assigns unique IDs.
 
 ## Usage
 
-FIXME
+TODO
 
 ## License
 
-Copyright © 2014 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Copyright © 2014 Sunlight Foundation
