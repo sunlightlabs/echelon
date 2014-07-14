@@ -78,21 +78,17 @@
     (println (how-many? dbc))
     dbc))
 
-(defn -main [arg]
-  (condp = arg
-    "load"
-    (do
-      (d/delete-database uri)
-      (d/create-database uri)
-      (def c (d/connect uri))
-      (println "Loading Database...")
-      (load-database! c)
-      (println "Loaded!")
-      (println (how-many? (db c)))
-      (java.lang.System/exit 0))
-    "match"
-    (do
-      (as-> (db (d/connect uri)) hypothetical
+(defn load-data []
+  (d/delete-database uri)
+  (d/create-database uri)
+  (def c (d/connect uri))
+  (println "Loading Database...")
+  (load-database! c)
+  (println "Loaded!")
+  (println (how-many? (db c))))
+
+(defn match-data []
+    (as-> (db (d/connect uri)) hypothetical
             (merges-based-on-exact-name hypothetical)
             (merges-based-on-extracted-name hypothetical)
             (->> (d/q '[:find ?being ?name
@@ -111,5 +107,12 @@
                  (sort-by (comp first second))
                  pprint
                  with-out-str
-                 (spit "names-output.clj")))
-      (java.lang.System/exit 0))))
+                 (spit "names-output.clj"))))
+
+(defn -main [arg]
+  (condp = arg
+    "load" (load-data)
+    "match" (do
+              (load-data)
+              (match-data)))
+    (java.lang.System/exit 0))
