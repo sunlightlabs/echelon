@@ -99,16 +99,20 @@
 
 (def activity-attributes
   [(enum            :lobbying.records/activity)
-   (string-prop     :lobbying.activity/issues-details
+   (string-prop     :lobbying.activity/general-details
                     "Details about the lobbying generally done by the
                     registrant for the client on various issues.")
+   (string-prop     :lobbying.activity/specific-details
+                    "Details about the lobbying specifically done by the
+                    registrant for the client.")
+   ;;foreign interest?
+   ;; (string-prop     :lobbying.activity/houses-and-agencies
+   ;;                  "Details about the lobbying specifically done by the
+   ;;                  registrant for the client.")
    (component-props :lobbying.activity/issue-codes
                     "The issue codes generally associated with the activity.")
    (component-props :lobbying.activity/lobbyists
                     "The foreign entities for the activity.")])
-
-(def transaction-annotations-attributes
-  )
 
 ;;(enum               :lobbying.records/affiliated-organization)
 ;;(enum            :lobbying.records/foreign-entity)
@@ -139,15 +143,37 @@
 
 (def registration-form-attributes
   [(enum            :lobbying.records/registration)
-   (instant-prop    :lobbying.engagement/effective-date
+   (instant-prop    :lobbying.registration/effective-date
                     "No idea what this one actually means.")
-   (component-props :lobbying.engagement/affiliated-organizations
+   (component-props :lobbying.registration/affiliated-organizations
                     "The affiliated organizations for the engagement.")
-   (component-props :lobbying.engagement/foreign-entity
-                    "The foreign entities for the engagement.")])
+   (component-props :lobbying.registration/foreign-entities
+                    "The foreign entities for the engagement.")
+   (component-prop :lobbying.registration/activity
+                   "Initial description of lobbying activity")])
 
 (def report-form-attributes
-  [(enum            :lobbying.records/report)])
+  [(enum            :lobbying.records/report)
+   (component-props :lobbying.report/removed-foreign-entities
+                    "Removed foreign entities.")
+   (component-props :lobbying.report/added-foreign-entities
+                    "Added foreign entities.")
+   (component-props :lobbying.report/removed-affiliated-organizations
+                    "Removed affiliated organizations.")
+   (component-props :lobbying.report/added-affiliated-organizations
+                    "Added affiliated organizations.")
+   (component-props :lobbying.report/removed-lobbyists
+                    "Removed lobbyists.")
+   (component-props :lobbying.report/added-lobbyists
+                    "Added lobbyists.")
+   (component-props :lobbying.registration/activities
+                   "Initial description of lobbying activity")
+   (ref-props :lobbying.report/removed-lobbying-issues
+                    "Removed lobbying issues.")
+   (ref-props :lobbying.report/added-lobbying-issues
+                    "Added lobbying issues.")
+
+   ])
 
 (def schema
   (concat alis-attributes
