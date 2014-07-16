@@ -1,4 +1,5 @@
-(ns echelon.ali)
+(ns echelon.ali
+  (:require [datomic.api :refer [tempid]]))
 
 (def alis
   {"ACC" "Accounting"
@@ -81,8 +82,11 @@
    "WAS" "Waste (hazardous/solid/interstate/nuclear)"
    "WEL" "Welfare"})
 
+(defn string->ali [code]
+  (keyword (str "lobbying.alis/" code)))
+
 (def alis-attributes
   (for [[code description] alis]
-    {:db/id #db/id[:db.part/db]
+    {:db/id (tempid :db.part/user)
      :db/ident (keyword (str "lobbying.alis/" code))
      :db/doc (str "Code for activities relating to \"" description "\".")}))
