@@ -13,37 +13,40 @@
   (let [f #(-> (d/q '[:find (count ?being)
                       :in $ ?type
                       :where
-                      [?r :being/type ?type]
-                      [?r :being/represents ?being]]
+                      [?r :record/type ?type]
+                      [?r :record/represents ?being]]
                     dbc
                     %)
                ffirst)]
-    {:clients (f :being.type/:client)
-     :firms   (f :being.type/:firm)}))
+    {:clients    (f :lobbying.record/client)
+     :registrant (f :lobbying.record/registrant)
+     :lobbyist   (f :lobbying.record/lobbyist)
+     :activity   (f :lobbying.record/activity)
+     :contact    (f :lobbying.record/contact)}))
 
 
 (defn merges-for-beings [dbc [b1 & b2s]]
   (let [records (map
                  #(d/q '[:find ?record
                          :in $ ?being
-                         :where [?record :being/represents ?being]]
+                         :where [?record :record/represents ?being]]
                        dbc
                        %)
                  b2s)
-        adds    (mapv #(vector :db/add (ffirst %) :being/represents b1)
+        adds    (mapv #(vector :db/add (ffirst %) :record/represents b1)
                       records)
         retracts (map #(vector :db.fn/retractEntity %) b2s)
         data (vec (concat adds retracts))]
     data))
 
-(def rules '[[(name-of ?record ?name) [?record :client/name ?name]]
-             [(name-of ?record ?name) [?record :firm/name ?name]]])
+(def rules '[[(name-of ?record ?name) [?record :lobbying.client/name ?name]]
+             [(name-of ?record ?name) [?record :lobbying.registrant/name ?name]]])
 
 (defn beings-and-names [dbc]
   (d/q '[:find ?being ?name :in $ %
          :where
-         [?being  :being/type :being.type/:being]
-         [?record :being/represents ?being]
+         [?being  :record/type :being.record/being]
+         [?record :record/represents ?being]
          (name-of ?record ?name)]
        dbc
        rules))
@@ -81,11 +84,15 @@
 (defn load-data []
   (d/delete-database uri)
   (d/create-database uri)
-  (def c (d/connect uri))
-  (println "Loading Database...")
-  (load-database! c)
-  (println "Loaded!")
-  (println (how-many? (db c))))
+  (let [c (d/connect uri)]
+    (println "Loading Database...")
+    (load-database! c)
+    (println "Loaded!")
+    (println (how-many? (db c)))))
+
+(defn print-status []
+  (let [c (d/connect uri)]
+    (println (how-many? (db c)))))
 
 (defn match-data []
     (as-> (db (d/connect uri)) hypothetical
@@ -95,8 +102,8 @@
                         :in $ %
                         :with ?record
                         :where
-                        [?being  :being/type :being.type/:being]
-                        [?record :being/represents ?being]
+                        [?being  :record/type :being.record/being]
+                        [?record :record/represents ?being]
                         (name-of ?record ?name)]
                       hypothetical
                       rules)
@@ -107,12 +114,11 @@
                  (sort-by (comp first second))
                  pprint
                  with-out-str
-                 (spit "names-output.clj"))))
+                 (spit "output/names-output.clj"))))
 
 (defn -main [arg]
   (condp = arg
-    "load" (load-data)
-    "match" (do
-              (load-data)
-              (match-data)))
+    "load"   (load-data)
+    "match"  (match-data)
+    "status" (print-status))
     (java.lang.System/exit 0))
