@@ -2,8 +2,8 @@
   (:require [datomic.api :as d :refer [db q]]
             [clojure.pprint :refer [pprint]]
             [echelon.load :refer [load-database!]]
-            [echelon.text :refer [extract-names]]
-            [echelon.util :refer [group-by-features]]))
+            [echelon.text :refer [extract-names clean]]
+            [echelon.util :refer [group-by-features disjoint-lists]]))
 
 (def uri "datomic:free://localhost:4334/echelon")
 
@@ -55,7 +55,7 @@
   (println "Merging based on exact names")
   (let [dbc
         (->> (beings-and-names dbc)
-             (group-by second)
+             (group-by (comp clean second))
              seq
              (map second)
              (filter #(< 1 (count %)))
@@ -75,6 +75,7 @@
              (map second)
              (filter #(< 1 (count %)))
              (map (partial map first))
+             disjoint-lists
              (mapcat (partial merges-for-beings dbc))
              (d/with dbc)
              :db-after)]
@@ -95,6 +96,8 @@
     (println (how-many? (db c)))))
 
 (defn match-data []
+  (println "Starting merge process")
+  (println (how-many? (db (d/connect uri))))
     (as-> (db (d/connect uri)) hypothetical
             (merges-based-on-exact-name hypothetical)
             (merges-based-on-extracted-name hypothetical)
