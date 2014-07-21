@@ -110,6 +110,10 @@
     (-> (proto-prop prop doc)
         (merge m))))
 
+(def bool-prop
+  (prop-fn {:db/valueType :db.type/boolean
+            :db/cardinality :db.cardinality/one}))
+
 (def long-prop
   (prop-fn {:db/valueType :db.type/long
             :db/cardinality :db.cardinality/one}))
@@ -155,7 +159,7 @@
 ;;Various grouping of attributes from the schema
 
 (def data-attributes
-  [(long-prop :data/position
+  [(long-prop       :data/position
               "Remembering the order in which we received the given data.")])
 
 (def being-framework-attributes
@@ -168,26 +172,30 @@
                     only property that will ever be overwritten.")])
 
 (def address-attributes
-  [(string-prop    :address/first-line  "First line for an address")
-   (string-prop    :address/second-line "Second line for an address")
-   (string-prop    :address/zipcode     "Zipcode for an address")
-   (string-prop    :address/city        "City for an address")
-   (string-prop    :address/state       "State for an address")
-   (string-prop    :address/country     "Country for an address")])
+  [(string-prop     :address/first-line  "First line for an address")
+   (string-prop     :address/second-line "Second line for an address")
+   (string-prop     :address/zipcode     "Zipcode for an address")
+   (string-prop     :address/city        "City for an address")
+   (string-prop     :address/state       "State for an address")
+   (string-prop     :address/country     "Country for an address")])
 
 (def client-attributes
-  [(enum           :lobbying.record/client)
-   (string-prop    :lobbying.client/name         "Client name.")
-   (string-prop    :lobbying.client/description  "Client description.")
-   (component-prop :lobbying.client/main-address "Main address for the client.")
-   (component-prop :lobbying.client/principal-place-of-business
-                   "Primary location where a taxpayers's business is
+  [(enum            :lobbying.record/client)
+   (string-prop     :lobbying.client/name         "Client name.")
+   (string-prop     :lobbying.client/description  "Client description.")
+   (component-prop  :lobbying.client/main-address "Main address for the client.")
+   (component-prop  :lobbying.client/principal-place-of-business
+                    "Primary location where a taxpayers's business is
                    performed (bit.ly/1s3ZbG7)")])
 
 (def registrant-attributes
   [(enum            :lobbying.record/registrant)
    (string-prop     :lobbying.registrant/name         "Registrant name.")
    (string-prop     :lobbying.registrant/description  "Registrant description.")
+   (bool-prop       :lobbying.registrant/self-employed-individual
+                    "Whether an individual is self employed.")
+   (bool-prop       :lobbying.registrant/organization-or-lobbying
+                    "Whether a registrant is an organization or lobbying.")
    (component-prop  :lobbying.registrant/main-address
                     "Main address for reaching the registrant.")
    (component-prop  :lobbying.registrant/principal-place-of-business
@@ -202,7 +210,7 @@
    (string-prop     :lobbying.contact/email "Contact email.")])
 
 (def lobbyist-attributes
-  [(enum           :lobbying.record/lobbyist)
+  [(enum            :lobbying.record/lobbyist)
    (string-prop     :lobbying.lobbyist/first-name "First name of lobbyist.")
    (string-prop     :lobbying.lobbyist/last-name  "Last name of lobbyist.")
    (string-prop     :lobbying.lobbyist/suffix     "Suffix of lobbyist.")
@@ -249,12 +257,10 @@
    (component-prop  :lobbying.affiliated-organization/principal-place-of-business
                     "Principal place of business for affiliated organization.")])
 
-;;(enum               :lobbying.record/affiliated-organization)
-;;(enum            :lobbying.record/foreign-entity)
-;;(enum            :lobbying.record/individual)
-
 (def common-form-attributes
-  [;;Common parts of each form
+  [ ;;Common parts of each form
+   (bool-prop       :lobbying.form/amendment
+                    "Whether the form is an amendment.")
    (string-prop     :lobbying.form/house-id
                     "Id given out the clerk of the house of
                      representatives identiying a client and registrant.")
@@ -264,11 +270,13 @@
    (instant-prop    :lobbying.form/signature-date
                     "We have no idea what this means.")
    (component-prop  :lobbying.form/client
-                   "The client for the form.")
+                    "The client for the form.")
    (component-prop  :lobbying.form/registrant
-                   "The registrant for the form.")
+                    "The registrant for the form.")
+   (bool-prop       :lobbying.form/client-registrant-same
+                    "Whether the client and registrant are the same entity")
    (component-prop  :lobbying.form/contact
-                   "The contact for the form.")
+                    "The contact for the form.")
    (component-prop  :lobbying.form/individual
                     "Potentially used, if the registrant is an individual for the form.")
    (ref-prop        :lobbying.form/source "Where the data came from.")
@@ -278,14 +286,19 @@
 
 (def registration-form-attributes
   [(enum            :lobbying.record/registration)
+   (bool-prop       :lobbying.form/new-registrant
+                    "Whether the form is for an new registrant.")
+   (bool-prop       :lobbying.form/new-client-for-existing-registrant
+                    "Whether the form is for an new client for an existing
+              registrant.")
    (instant-prop    :lobbying.registration/effective-date
                     "No idea what this one actually means.")
    (component-props :lobbying.registration/affiliated-organizations
                     "The affiliated organizations for the engagement.")
    (component-props :lobbying.registration/foreign-entities
                     "The foreign entities for the engagement.")
-   (component-prop :lobbying.registration/activity
-                   "Initial description of lobbying activity")])
+   (component-prop  :lobbying.registration/activity
+                    "Initial description of lobbying activity")])
 
 (def report-form-attributes
   [(enum            :lobbying.record/report)
@@ -302,10 +315,10 @@
    (component-props :lobbying.report/added-lobbyists
                     "Added lobbyists.")
    (component-props :lobbying.registration/activities
-                   "Initial description of lobbying activity")
-   (ref-props :lobbying.report/removed-lobbying-issues
+                    "Initial description of lobbying activity")
+   (ref-props       :lobbying.report/removed-lobbying-issues
                     "Removed lobbying issues.")
-   (ref-props :lobbying.report/added-lobbying-issues
+   (ref-props       :lobbying.report/added-lobbying-issues
                     "Added lobbying issues.")])
 
 (def schema

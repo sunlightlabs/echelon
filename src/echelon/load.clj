@@ -67,6 +67,16 @@
                        :lobbying.form/source :lobbying.form/sopr-html
                        :lobbying.form/document-id (:document_id m)
 
+                       :lobbying.form/amendment
+                       (-> m :registration_type :amendment)
+                       :lobbying.form/new-registrant
+                       (-> m :registration_type :new_registrant)
+                       :lobbying.form/new-client-for-existing-registrant
+                       (-> m :registration_type :new_client_for_existing_registrant)
+                       :lobbying.form/client-registrant-same
+                       (-> m :client :client_self)
+
+
                        :lobbying.form/house-id
                        (get-in m [:registrant :registrant_house_id])
                        :lobbying.form/senate-id
@@ -80,7 +90,7 @@
                        :lobbying.form/client
                        (let [c (:client m)]
                          {:record/type :lobbying.record/client
-                          :record/represents client-being-id
+                          :record/represents  client-being-id
                           :lobbying.client/name        (:client_name c)
                           :lobbying.client/description (:client_general_description c)
 
@@ -100,10 +110,14 @@
                        :lobbying.form/registrant
                        (let [r (:registrant m)]
                          {:record/type :lobbying.record/registrant
-                          :record/represents registrant-being-id
+                          :record/represents
+                          (if (m :client :client_self)
+                            client-being-id
+                            registrant-being-id)
                           :lobbying.registrant/name        (:registrant_name r)
                           :lobbying.registrant/description (:registrant_general_description r)
-
+                          :lobbying.registrant/self-employed-individual
+                          (r :self_employed_individual)
                           :lobbying.registrant/main-address
                           {:address/first-line  (:registrant_address_one r)
                            :address/second-line (:registrant_address_two r)
@@ -239,8 +253,8 @@
                   slurp))
        (filter (comp not empty? :affiliated_organizations) )
        first
-       (vector "")
-       registration-datoms
+;       (vector "")
+       ;registration-datoms
        ))
 
 (comment
