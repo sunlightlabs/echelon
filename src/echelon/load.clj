@@ -30,22 +30,37 @@
              (f/parse (f/formatters :date-hour-minute-second))
              (.toDate))))
 
+(defn temp-user []
+  (d/tempid :db.part/user))
+
+(defn parse-dec [s]
+  (if (= "" s)
+    (java.math.BigDecimal. "0")
+    (java.math.BigDecimal. s)))
+
 (defn registration-datoms [[f m]]
-  (let [lobbyists           (:lobbyists m)
-        contact-being-id    (d/tempid :db.part/user)
-        client-being-id     (d/tempid :db.part/user)
-        registrant-being-id (d/tempid :db.part/user)
-        activity-being-id   (d/tempid :db.part/user)
+  (let [lobbyists                (:lobbyists m)
+        foreign-entities         (:foreign_entities m)
+        affiliated-organizations (:affiliated_organizations m)
+
+        contact-being-id         (temp-user)
+        client-being-id          (temp-user)
+        registrant-being-id      (temp-user)
+        activity-being-id        (temp-user)
+
         lobbyist-being-ids
-        (repeatedly (count lobbyists) #(d/tempid :db.part/user))
-        affliated-organization-beings-ids []
-        foreign-entities-beings-ids []
+        (repeatedly (count lobbyists) temp-user)
+        affiliated-organization-beings-ids
+        (repeatedly (count affiliated-organizations) temp-user)
+        foreign-entity-beings-ids
+        (repeatedly (count foreign-entities) temp-user)
+
         beings
         (map new-being (concat [contact-being-id client-being-id registrant-being-id
                                 activity-being-id]
                                lobbyist-being-ids
-                               affliated-organization-beings-ids
-                               foreign-entities-beings-ids))
+                               affiliated-organization-beings-ids
+                               foreign-entity-beings-ids))
         registration  {:db/id (d/tempid :db.part/user)
                        :record/type :lobbying.record/registration
 
@@ -132,7 +147,71 @@
                                (:lobbyist_suffix %2)
                                :lobbying.lobbyist/covered-official-position
                                (:lobbyist_covered_official_position %2)})
-                         lobbyists)}}]
+                         lobbyists)}
+
+                       :lobbying.registration/foreign-entities
+                       (map-indexed
+                        #(do
+                           {:record/type :lobbying.record/foreign-entity
+                            :record/represents
+                            (nth foreign-entity-beings-ids %1)
+                            :data/position %1
+                            :lobbying.foreign-entity/name
+                            (:foreign_entity_name %2)
+
+                            :lobbying.foreign-entity/amount
+                            (-> %2
+                                :foreign_entity_amount
+                                parse-dec)
+
+                            :lobbying.foreign-entity/ownership-percentage
+                            (-> %2
+                                :foreign_entity_ownership_percentage
+                                parse-dec)
+
+                            :lobbying.foreign-entity/main-address
+                            {:address/first-line
+                             (:foreign_entity_address %2)
+                             :address/city
+                             (:foreign_entity_city %2)
+                             :address/state
+                             (:foreign_entity_state %2)
+                             :address/country
+                             (:foreign_entity_country %2)}
+
+                            :lobbying.foreign-entity/principal-place-of-business
+                            {:address/country
+                             (:foreign_entity_ppb_country %2)
+                             :address/state
+                             (:foreign_entity_ppb_state %2)}})
+                        foreign-entities)
+
+                       :lobbying.registration/affiliated-organizations
+                       (map-indexed
+                        #(do {:record/type :lobbying.record/affiliated-organization
+                              :record/represents
+                              (nth affiliated-organization-beings-ids %1)
+                              :data/position %1
+                              :lobbying.affiliated-organization/name
+                              (:affiliated_organization_name %2)
+
+                              :lobbying.affiliated-organization/main-address
+                              {:address/first-line
+                               (:affiliated_organization_address %2)
+                               :address/city
+                               (:affiliated_organization_city %2)
+                               :address/state
+                               (:affiliated_organization_state %2)
+                               :address/country
+                               (:affiliated_organization_country %2)}
+
+                              :lobbying.affiliated-organization/principal-place-of-business
+                              {:address/country
+                               (:affiliated_organization_ppb_country %2)
+                               :address/state
+                               (:affiliated_organization_ppb_state %2)}})
+                        affiliated-organizations)
+                       }]
     (conj (vec beings)
           registration)))
 
@@ -146,10 +225,29 @@
     @(d/transact conn datoms)))
 
 (defn load-schema! [conn]
-  (d/transact conn schema))
+  @(d/transact conn schema))
 
 (defn load-database! [conn]
   (println "Schema loading...")
   (load-schema! conn)
   (println "Data loading...")
   (load-data! conn))
+
+(comment
+  (->> (list-registration-forms)
+       (map (comp #(json/read-str % :key-fn keyword)
+                  slurp))
+       (filter (comp not empty? :affiliated_organizations) )
+       first
+       (vector "")
+       registration-datoms
+       ))
+
+(comment
+  (doseq [form (list-registration-forms)
+          :when (-> form
+                    slurp
+                    (json/read-str :key-fn keyword)
+                    (#(registration-datoms ["" %] ))
+                    contains-nil?)]
+    (println form)))

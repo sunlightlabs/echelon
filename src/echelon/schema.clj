@@ -114,6 +114,18 @@
   (prop-fn {:db/valueType :db.type/long
             :db/cardinality :db.cardinality/one}))
 
+(def double-prop
+  (prop-fn {:db/valueType :db.type/double
+            :db/cardinality :db.cardinality/one}))
+
+(def float-prop
+  (prop-fn {:db/valueType :db.type/float
+            :db/cardinality :db.cardinality/one}))
+
+(def dec-prop
+  (prop-fn {:db/valueType :db.type/bigdec
+            :db/cardinality :db.cardinality/one}))
+
 (def string-prop
   (prop-fn {:db/valueType :db.type/string
             :db/cardinality :db.cardinality/one}))
@@ -206,13 +218,36 @@
                     "Details about the lobbying specifically done by the
                     registrant for the client.")
    ;;foreign interest?
-   ;; (string-prop     :lobbying.activity/houses-and-agencies
+   ;; (string-prop  :lobbying.activity/houses-and-agencies
    ;;                  "Details about the lobbying specifically done by the
    ;;                  registrant for the client.")
    (component-props :lobbying.activity/issue-codes
                     "The issue codes generally associated with the activity.")
    (component-props :lobbying.activity/lobbyists
                     "The foreign entities for the activity.")])
+
+
+(def foreign-entity-attributes
+  [(enum            :lobbying.record/foreign-entity)
+   (string-prop     :lobbying.foreign-entity/name
+                    "Name of foreign entity.")
+   (dec-prop        :lobbying.foreign-entity/amount
+                    "Amount contributed to lobbying efforts.")
+   (dec-prop        :lobbying.foreign-entity/ownership-percentage
+                    "Ownership percentage in client.")
+   (component-prop  :lobbying.foreign-entity/main-address
+                    "Main address for foreign entity")
+   (component-prop  :lobbying.foreign-entity/principal-place-of-business
+                    "Principal place of business for foreign entity.")])
+
+(def affiliated-organization-attributes
+  [(enum            :lobbying.record/affiliated-organization)
+   (string-prop     :lobbying.affiliated-organization/name
+                    "Name of foreign entity.")
+   (component-prop  :lobbying.affiliated-organization/main-address
+                    "Main address for affiliated organization.")
+   (component-prop  :lobbying.affiliated-organization/principal-place-of-business
+                    "Principal place of business for affiliated organization.")])
 
 ;;(enum               :lobbying.record/affiliated-organization)
 ;;(enum            :lobbying.record/foreign-entity)
@@ -271,9 +306,7 @@
    (ref-props :lobbying.report/removed-lobbying-issues
                     "Removed lobbying issues.")
    (ref-props :lobbying.report/added-lobbying-issues
-                    "Added lobbying issues.")
-
-   ])
+                    "Added lobbying issues.")])
 
 (def schema
   (vec (concat data-attributes
@@ -284,6 +317,8 @@
                registrant-attributes
                contact-attributes
                lobbyist-attributes
+               affiliated-organization-attributes
+               foreign-entity-attributes
                activity-attributes
                common-form-attributes
                registration-form-attributes
