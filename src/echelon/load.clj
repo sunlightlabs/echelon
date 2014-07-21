@@ -1,11 +1,12 @@
 (ns echelon.load
   (:require [datomic.api :as d :refer [db q]]
             [clojure.data.json :as json]
-            [echelon.ali :refer [string->ali]]
             [echelon.text :refer [clean]]
-            [echelon.schema :refer [schema]]
+            [echelon.schema :refer [schema string->issue-code]]
+            [echelon.util :refer [contains-nil?]]
             [me.raynes.fs :as fs]
-            [clojure.pprint :refer [pprint]]))
+            [clojure.pprint :refer [pprint]]
+            [clj-time.format :as f]))
 
 (def datadir "/home/zmaril/data/sopr_html/")
 
@@ -22,7 +23,14 @@
    :record/type :being.record/being
    :being/id (str (d/squuid))})
 
-(defn registration-datoms [m]
+(defn parse-time [s]
+  (if (= s "03/031/2008")
+    (java.util.Date. "03/31/2008")
+    (some->> s
+             (f/parse (f/formatters :date-hour-minute-second))
+             (.toDate))))
+
+(defn registration-datoms [[f m]]
   (let [lobbyists           (:lobbyists m)
         contact-being-id    (d/tempid :db.part/user)
         client-being-id     (d/tempid :db.part/user)
@@ -49,9 +57,10 @@
                        :lobbying.form/senate-id
                        (get-in m [:registrant :registrant_senate_id])
 
-                                        ;(get-in m [:datetimes :signature_date])
-                                        ;:lobbying.registration/effective-date
-                                        ;(get-in m [:datetimes :effective_date])
+                       :lobbying.form/signature-date
+                       (-> m :datetimes :signature_date parse-time)
+                       :lobbying.registration/effective-date
+                       (-> m :datetimes :effective_date parse-time)
 
                        :lobbying.form/client
                        (let [c (:client m)]
@@ -109,7 +118,7 @@
                         (:lobbying_issues_detail  m)
                         :lobbying.activity/issue-codes
                         (->> m :lobbying_issues
-                             (map (comp string->ali :issue_code)))
+                             (map (comp string->issue-code :issue_code)))
                         :lobbying.activity/lobbyists
                         (map-indexed
                          #(do {:record/type :lobbying.record/lobbyist
@@ -128,24 +137,13 @@
           registration)))
 
 (defn load-data! [conn]
-  (->> (list-registration-forms)
-       (map (comp
-             deref
-             (partial d/transact conn)
-             registration-datoms
-             #(json/read-str % :key-fn keyword)
-             slurp))
-       doall
-       count
-       (str "Found this many files:" )
-       println)
-
-  (comment
-    (->> (list-ld2-forms)
-         (filter (complement nil?))
-         (apply concat)
-         (pmap (comp (partial add-ld2-form! conn) json/read-str slurp))
-         doall)))
+  (doseq [datoms
+          (map (comp
+                registration-datoms
+                (juxt identity (comp #(json/read-str % :key-fn keyword) slurp)))
+               (list-registration-forms))
+          :when (not (contains-nil? datoms))]
+    @(d/transact conn datoms)))
 
 (defn load-schema! [conn]
   (d/transact conn schema))

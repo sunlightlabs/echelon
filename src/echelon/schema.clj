@@ -1,6 +1,96 @@
 (ns echelon.schema
-  (:require [echelon.ali :refer [alis-attributes]]
-            [datomic.api :refer [tempid]]))
+  (:require [datomic.api :refer [tempid]]))
+
+;; Lobbying codes taken from http://1.usa.gov/1lm74is
+(def issue-codes
+  {"ACC" "Accounting"
+   "ADV" "Advertising"
+   "AER" "Aerospace"
+   "AGR" "Agriculture"
+   "ALC" "Alcohol & Drug Abuse"
+   "ANI" "Animals"
+   "APP" "Apparel/Clothing Industry/Textiles"
+   "ART" "Arts/Entertainment"
+   "AUT" "Automotive Industry"
+   "AVI" "Aviation/Aircraft/Airlines"
+   "BAN" "Banking"
+   "BEV" "Beverage Industry"
+   "BNK" "Bankruptcy"
+   "BUD" "Budget/Appropriations"
+   "CAW" "Clean Air & Water (Quality)"
+   "CDT" "Commodities (Big Ticket)"
+   "CHM" "Chemicals/Chemical Industry"
+   "CIV" "Civil Rights/Civil Liberties"
+   "COM" "Communications/Broadcasting/Radio/TV"
+   "CON" "Constitution"
+   "CPI" "Computer Industry"
+   "CPT" "Copyright/Patent/Trademark"
+   "CSP" "Consumer Issues/Safety/Protection"
+   "DEF" "Defense"
+   "DIS" "Disaster Planning/Emergencies"
+   "DOC" "District of Columbia"
+   "ECN" "Economics/Economic Development"
+   "EDU" "Education"
+   "ENG" "Energy/Nuclear"
+   "ENV" "Environmental/Superfund"
+   "FAM" "Family Issues/Abortion/Adoption"
+   "FIN" "Financial Institutions/Investments/Securities"
+   "FIR" "Firearms/Guns/Ammunition"
+   "FOO" "Food Industry (Safety, Labeling, etc.)"
+   "FOR" "Foreign Relations"
+   "FUE" "Fuel/Gas/Oil"
+   "GAM" "Gaming/Gambling/Casino"
+   "GOV" "Government Issues"
+   "HCR" "Health Issues"
+   "HOM" "Homeland Security"
+   "HOU" "Housing"
+   "IMM" "Immigration"
+   "IND" "Indian/Native American Affairs"
+   "INS" "Insurance"
+   "INT" "Intelligence and Surveillance"
+   "LAW" "Law Enforcement/Crime/Criminal Justice"
+   "LBR" "Labor Issues/Antitrust/Workplace"
+   "MAN" "Manufacturing"
+   "MAR" "Marine/Maritime/Boating/Fisheries"
+   "MED" "Medical/Disease Research/Clinical Labs"
+   "MIA" "Media (Information/Publishing)"
+   "MMM" "Medicare/Medicaid"
+   "MON" "Minting/Money/Gold Standard"
+   "NAT" "Natural Resources"
+   "PHA" "Pharmacy"
+   "POS" "Postal"
+   "REL" "Religion"
+   "RES" "Real Estate/Land Use/Conservation"
+   "RET" "Retirement"
+   "ROD" "Roads/Highway"
+   "RRR" "Railroads"
+   "SCI" "Science/Technology"
+   "SMB" "Small Business"
+   "SPO" "Sports/Athletics"
+   "TAR" "Miscellaneous Tariff Bills"
+   "TAX" "Taxation/Internal Revenue Code"
+   "TEC" "Telecommunications"
+   "TOB" "Tobacco"
+   "TOR" "Torts"
+   "TOU" "Travel/Tourism"
+   "TRA" "Transportation"
+   "TRD" "Trade (Domestic & Foreign)"
+   "TRU" "Trucking/Shipping"
+   "UNM" "Unemployment"
+   "URB" "Urban Development/Municipalities"
+   "UTI" "Utilities"
+   "VET" "Veterans"
+   "WAS" "Waste (hazardous/solid/interstate/nuclear)"
+   "WEL" "Welfare"})
+
+(defn string->issue-code [code]
+  (keyword (str "lobbying.issue-code/" code)))
+
+(def issue-code-attributes
+  (for [[code description] issue-codes]
+    {:db/id (tempid :db.part/user)
+     :db/ident (keyword (str "lobbying.issue-code/" code))
+     :db/doc (str "Code for activities relating to \"" description "\".")}))
 
 ;;Helper functions for datomic. We're not doing too many fancy things
 ;;here with datomic and the main struggle has just been understanding
@@ -187,7 +277,7 @@
 
 (def schema
   (vec (concat data-attributes
-               alis-attributes
+               issue-code-attributes
                address-attributes
                being-framework-attributes
                client-attributes

@@ -30,3 +30,8 @@
          keys
          (group-by uf)
          vals)))
+
+(defn contains-nil? [arg]
+  (if (coll? arg)
+    (reduce #(or %1 %2) false (map contains-nil? arg))
+    (nil? arg)))
