@@ -7,7 +7,7 @@
             [me.raynes.fs :as fs]
             [clojure.pprint :refer [pprint]]))
 
-(def datadir "/home/zmaril/data/original/sopr_html/")
+(def datadir "/home/zmaril/data/sopr_html/")
 
 (defn list-registration-forms []
   (mapcat #(fs/glob (str datadir "/" % "/REG/*"))
@@ -23,7 +23,7 @@
    :being/id (str (d/squuid))})
 
 (defn registration-datoms [m]
-  (let [lobbyists           (-> m :lobbyists :lobbyists)
+  (let [lobbyists           (:lobbyists m)
         contact-being-id    (d/tempid :db.part/user)
         client-being-id     (d/tempid :db.part/user)
         registrant-being-id (d/tempid :db.part/user)
@@ -45,11 +45,10 @@
                        :lobbying.form/document-id (:document_id m)
 
                        :lobbying.form/house-id
-                       (get-in m [:identifiers :registrant_house_id])
+                       (get-in m [:registrant :registrant_house_id])
                        :lobbying.form/senate-id
-                       (get-in m [:identifiers :registrant_senate_id])
+                       (get-in m [:registrant :registrant_senate_id])
 
-                                        ;:lobbying.form/signature-date
                                         ;(get-in m [:datetimes :signature_date])
                                         ;:lobbying.registration/effective-date
                                         ;(get-in m [:datetimes :effective_date])
@@ -107,10 +106,10 @@
                        {:record/type :lobbying.record/activity
                         :record/represents activity-being-id
                         :lobbying.activity/general-details
-                        (-> m :lobbying_issues_detail  :lobbying_issues_detail)
+                        (:lobbying_issues_detail  m)
                         :lobbying.activity/issue-codes
-                        (->> m :lobbying_issues  :lobbying_issues
-                             (map  (comp string->ali :issue_code)))
+                        (->> m :lobbying_issues
+                             (map (comp string->ali :issue_code)))
                         :lobbying.activity/lobbyists
                         (map-indexed
                          #(do {:record/type :lobbying.record/lobbyist
@@ -131,6 +130,7 @@
 (defn load-data! [conn]
   (->> (list-registration-forms)
        (map (comp
+             deref
              (partial d/transact conn)
              registration-datoms
              #(json/read-str % :key-fn keyword)
@@ -139,6 +139,7 @@
        count
        (str "Found this many files:" )
        println)
+
   (comment
     (->> (list-ld2-forms)
          (filter (complement nil?))
@@ -154,34 +155,3 @@
   (load-schema! conn)
   (println "Data loading...")
   (load-data! conn))
-
-(comment
-   (->> (list-registration-forms)
-        (map (comp
-              registration-datoms
-              #(json/read-str % :key-fn keyword)
-              slurp))
-        first
-        doall))
-(comment
-  (->> (list-registration-forms)
-       (map (comp
-             #(json/read-str % :key-fn keyword)
-             slurp))
-       first
-       doall))
-
-
-(comment
-  (let [uri "datomic:free://localhost:4334/echelon"]
-    (d/delete-database uri)
-    (d/create-database uri)
-    (load-schema!  (d/connect uri))
-    (->> (list-registration-forms)
-         (take 1)
-         (map (comp
-               (partial d/transact (d/connect uri))
-               registration-datoms
-               #(json/read-str % :key-fn keyword)
-               slurp))
-         doall)))
