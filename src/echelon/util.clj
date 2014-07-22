@@ -17,7 +17,8 @@
     (transient {})
     coll)))
 
-;(disjoint-sets [[1 2 3] [4 5 6] [10 12 13] [1 4 2] [2 3 4 5 6])
+                                        ;
+;(disjoint-lists [[1 2 3] [4 5 6] [10 12 13] [1 4 2] [2 3 4 5 6]] )
 (defn disjoint-lists [lsts]
   "Given a list of lists, returns the disjoint sets formed by the
   equivalence classes described by the arguments. "
