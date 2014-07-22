@@ -134,6 +134,26 @@
   (prop-fn {:db/valueType :db.type/string
             :db/cardinality :db.cardinality/one}))
 
+(def fulltext-prop
+  (prop-fn {:db/valueType :db.type/string
+            :db/cardinality :db.cardinality/one
+            :db/fulltext true}))
+
+(def indexed-string-prop
+  (prop-fn {:db/valueType :db.type/string
+            :db/cardinality :db.cardinality/one
+            :db/index true}))
+
+(def unique-string-prop
+  (prop-fn {:db/valueType :db.type/string
+            :db/cardinality :db.cardinality/one
+            :db/index true
+            :db/unique :db.unique/identity}))
+
+(def indexed-prop
+  (prop-fn {:db/valueType :db.type/string
+            :db/cardinality :db.cardinality/one}))
+
 (def instant-prop
   (prop-fn {:db/valueType :db.type/instant
             :db/cardinality :db.cardinality/one}))
@@ -164,7 +184,7 @@
 
 (def being-framework-attributes
   [(enum            :being.record/being)
-   (string-prop     :being/id "A uuid for the being")
+   (indexed-string-prop     :being/id "A uuid for the being")
    (ref-prop        :record/type "A record's type.")
    (ref-prop        :record/represents
                     "Indicates that the record entity with this
@@ -181,8 +201,8 @@
 
 (def client-attributes
   [(enum            :lobbying.record/client)
-   (string-prop     :lobbying.client/name         "Client name.")
-   (string-prop     :lobbying.client/description  "Client description.")
+   (fulltext-prop   :lobbying.client/name         "Client name.")
+   (fulltext-prop   :lobbying.client/description  "Client description.")
    (component-prop  :lobbying.client/main-address "Main address for the client.")
    (component-prop  :lobbying.client/principal-place-of-business
                     "Primary location where a taxpayers's business is
@@ -190,8 +210,8 @@
 
 (def registrant-attributes
   [(enum            :lobbying.record/registrant)
-   (string-prop     :lobbying.registrant/name         "Registrant name.")
-   (string-prop     :lobbying.registrant/description  "Registrant description.")
+   (fulltext-prop   :lobbying.registrant/name         "Registrant name.")
+   (fulltext-prop   :lobbying.registrant/description  "Registrant description.")
    (bool-prop       :lobbying.registrant/self-employed-individual
                     "Whether an individual is self employed.")
    (bool-prop       :lobbying.registrant/organization-or-lobbying
@@ -205,24 +225,24 @@
 (def contact-attributes
   [(enum            :lobbying.record/contact)
    (string-prop     :lobbying.contact/name-prefix  "Contact name prefix.")
-   (string-prop     :lobbying.contact/name  "Contact name.")
+   (fulltext-prop   :lobbying.contact/name  "Contact name.")
    (string-prop     :lobbying.contact/phone "Contact phone.")
    (string-prop     :lobbying.contact/email "Contact email.")])
 
 (def lobbyist-attributes
   [(enum            :lobbying.record/lobbyist)
-   (string-prop     :lobbying.lobbyist/first-name "First name of lobbyist.")
-   (string-prop     :lobbying.lobbyist/last-name  "Last name of lobbyist.")
+   (fulltext-prop   :lobbying.lobbyist/first-name "First name of lobbyist.")
+   (fulltext-prop   :lobbying.lobbyist/last-name  "Last name of lobbyist.")
    (string-prop     :lobbying.lobbyist/suffix     "Suffix of lobbyist.")
-   (string-prop     :lobbying.lobbyist/covered-official-position
-                    "No idea, this is often blank.")])
+   (fulltext-prop     :lobbying.lobbyist/covered-official-position
+                    "No idea!")])
 
 (def activity-attributes
   [(enum            :lobbying.record/activity)
-   (string-prop     :lobbying.activity/general-details
+   (fulltext-prop   :lobbying.activity/general-details
                     "Details about the lobbying generally done by the
                     registrant for the client on various issues.")
-   (string-prop     :lobbying.activity/specific-details
+   (fulltext-prop   :lobbying.activity/specific-details
                     "Details about the lobbying specifically done by the
                     registrant for the client.")
    ;;foreign interest?
@@ -237,7 +257,7 @@
 
 (def foreign-entity-attributes
   [(enum            :lobbying.record/foreign-entity)
-   (string-prop     :lobbying.foreign-entity/name
+   (fulltext-prop   :lobbying.foreign-entity/name
                     "Name of foreign entity.")
    (dec-prop        :lobbying.foreign-entity/amount
                     "Amount contributed to lobbying efforts.")
@@ -250,7 +270,7 @@
 
 (def affiliated-organization-attributes
   [(enum            :lobbying.record/affiliated-organization)
-   (string-prop     :lobbying.affiliated-organization/name
+   (fulltext-prop   :lobbying.affiliated-organization/name
                     "Name of foreign entity.")
    (component-prop  :lobbying.affiliated-organization/main-address
                     "Main address for affiliated organization.")
@@ -261,11 +281,11 @@
   [ ;;Common parts of each form
    (bool-prop       :lobbying.form/amendment
                     "Whether the form is an amendment.")
-   (string-prop     :lobbying.form/house-id
-                    "Id given out the clerk of the house of
+   (indexed-string-prop    :lobbying.form/house-id
+                           "Id given out the clerk of the house of
                      representatives identiying a client and registrant.")
-   (string-prop     :lobbying.form/senate-id
-                    "Id given out the senate identiying a client and
+   (indexed-string-prop    :lobbying.form/senate-id
+                           "Id given out the senate identiying a client and
                      registrant.")
    (instant-prop    :lobbying.form/signature-date
                     "We have no idea what this means.")
@@ -281,8 +301,10 @@
                     "Potentially used, if the registrant is an individual for the form.")
    (ref-prop        :lobbying.form/source "Where the data came from.")
    (enum            :lobbying.form/sopr-html)
-   (string-prop     :lobbying.form/document-id
-                    "Id of a document (provided by sopr).")])
+   (unique-string-prop     :lobbying.form/document-id
+                           "Id of a document (provided by sopr).")
+   (string-prop     :lobbying.form/filepath
+                    "File which data for entity and subcomponents were pulled from.")  ])
 
 (def registration-form-attributes
   [(enum            :lobbying.record/registration)
