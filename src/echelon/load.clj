@@ -66,6 +66,7 @@
 
                        :lobbying.form/source :lobbying.form/sopr-html
                        :lobbying.form/document-id (:document_id m)
+                       :lobbying.form/filepath f
 
                        :lobbying.form/amendment
                        (-> m :registration_type :amendment)
@@ -111,7 +112,7 @@
                        (let [r (:registrant m)]
                          {:record/type :lobbying.record/registrant
                           :record/represents
-                          (if (m :client :client_self)
+                          (if (-> m :client :client_self)
                             client-being-id
                             registrant-being-id)
                           :lobbying.registrant/name        (:registrant_name r)
@@ -233,7 +234,8 @@
   (doseq [datoms
           (map (comp
                 registration-datoms
-                (juxt identity (comp #(json/read-str % :key-fn keyword) slurp)))
+                (juxt (memfn getPath)
+                      (comp #(json/read-str % :key-fn keyword) slurp)))
                (list-registration-forms))
           :when (not (contains-nil? datoms))]
     @(d/transact conn datoms)))
@@ -246,22 +248,3 @@
   (load-schema! conn)
   (println "Data loading...")
   (load-data! conn))
-
-(comment
-  (->> (list-registration-forms)
-       (map (comp #(json/read-str % :key-fn keyword)
-                  slurp))
-       (filter (comp not empty? :affiliated_organizations) )
-       first
-;       (vector "")
-       ;registration-datoms
-       ))
-
-(comment
-  (doseq [form (list-registration-forms)
-          :when (-> form
-                    slurp
-                    (json/read-str :key-fn keyword)
-                    (#(registration-datoms ["" %] ))
-                    contains-nil?)]
-    (println form)))

@@ -60,6 +60,7 @@
              (map second)
              (filter #(< 1 (count %)))
              (map (partial map first))
+             disjoint-lists
              (mapcat (partial merges-for-beings dbc))
              (d/with dbc)
              :db-after)]
