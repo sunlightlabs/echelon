@@ -17,17 +17,3 @@
 (defn clean [x] (-> x s/lower-case (s/replace "." "") s/trim))
 
 (defn extract-names [x] (-> x clean all-parses transform vec))
-
-(comment
-  (insta/parses
-   single-parse
-   (clean "AK Steel Holding Corporation (Formerly Known As AK Steel)")
-   :partial true
-   :unhide :all)
-  (insta/parse
-   single-parse
-   (clean "AK Steel Holding Corporation (Formerly Known As AK Steel)"))
-  (insta/parses
-   single-parse
-   (clean "Bolton-St. Johns, LLC (f/k/a Bolton-St. Johns, Inc.)")
-   :partial true :unhide :all))
