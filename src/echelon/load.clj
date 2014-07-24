@@ -8,15 +8,15 @@
             [clojure.pprint :refer [pprint]]
             [clj-time.format :as f]))
 
-(def datadir "/home/zmaril/data/sopr_html/")
+(def datadir (System/getenv "DATA_LOCATION"))
 
 (defn list-registration-forms []
   (mapcat #(fs/glob (str datadir "/" % "/REG/*"))
           (range 2008 2015)))
 
-(defn list-ld2-forms []
-  (for [y (range 2004 2015) q (range 1 5)]
-    (fs/glob (str datadir "LD2/" y "/Q" q "/*"))))
+(defn list-report-forms []
+  (apply concat (for [y (range 2008 2015) q (range 1 5)]
+                  (fs/glob (str datadir "/" y "/Q" q "/*")))))
 
 (defn new-being [id]
   {:db/id id
@@ -38,207 +38,416 @@
     (java.math.BigDecimal. "0")
     (java.math.BigDecimal. s)))
 
-(defn registration-datoms [[f m]]
-  (let [lobbyists                (:lobbyists m)
-        foreign-entities         (:foreign_entities m)
-        affiliated-organizations (:affiliated_organizations m)
+(defn structure-lobbyist
+  "Provide structure to a lobbyist within the db, pulling from the
+  given map."
+  [i m lid]
+  (let [basic  {:record/type :lobbying.record/lobbyist
+                :record/represents lid
+                :data/position i
+                :lobbying.lobbyist/first-name
+                (:lobbyist_first_name m)
+                :lobbying.lobbyist/last-name
+                (:lobbyist_last_name m)
+                :lobbying.lobbyist/suffix
+                (:lobbyist_suffix m)
+                :lobbying.lobbyist/covered-official-position
+                (:lobbyist_covered_official_position m)}]
+    (if (nil? (:lobbyist_is_new m))
+      basic
+      (assoc basic :lobbying.lobbyist/is-new (:lobbyist_is_new m)))))
 
-        contact-being-id         (temp-user)
-        client-being-id          (temp-user)
-        registrant-being-id      (temp-user)
-        activity-being-id        (temp-user)
+(defn structure-affiliated-organzation
+  "Provide structure to an affiliated organization within the db,
+  pulling from the given map."
+  [i m aid]
+  {:record/type :lobbying.record/affiliated-organization
+   :record/represents aid
+   :data/position i
+   :lobbying.affiliated-organization/name
+   (:affiliated_organization_name m)
 
-        lobbyist-being-ids
+   :lobbying.affiliated-organization/main-address
+   {:address/first-line
+    (or (:affiliated_organization_address m) "")
+    :address/city
+    (or (:affiliated_organization_city m) "")
+    :address/state
+    (or (:affiliated_organization_state m) "")
+    :address/country
+    (or (:affiliated_organization_country m) "")}
+
+   :lobbying.affiliated-organization/principal-place-of-business
+   {:address/country
+    (or (:affiliated_organization_ppb_country m) "")
+    :address/state
+    (or (:affiliated_organization_ppb_state m) "")}})
+
+(defn structure-foreign-entity
+  "Provide structure to a foreign entity within the db,
+  pulling from the given map."
+  [i m fid]
+  {:record/type :lobbying.record/foreign-entity
+   :record/represents fid
+   :data/position i
+   :lobbying.foreign-entity/name
+   (:foreign_entity_name m)
+
+   ;;TODO: What to do with nils for amount/incomes?
+   :lobbying.foreign-entity/amount
+   (or (some-> m :foreign_entity_amount parse-dec)
+       (parse-dec "0"))
+
+   :lobbying.foreign-entity/ownership-percentage
+   (or (some-> m :foreign_entity_ownership_percentage parse-dec)
+       (parse-dec "0"))
+
+   :lobbying.foreign-entity/main-address
+   {:address/first-line
+    (or (m :foreign_entity_address) "")
+    :address/city
+    (or (m :foreign_entity_city) "")
+    :address/state
+    (or (m :foreign_entity_state) "")
+    :address/country
+    (or (m :foreign_entity_country) "")}
+
+   :lobbying.foreign-entity/principal-place-of-business
+   {:address/country
+    (or (m :foreign_entity_ppb_country) "")
+    :address/state
+    (or (m :foreign_entity_ppb_state) "")}})
+
+(defn structure-basic-form [f m]
+  (let [contact-being-id (temp-user)
+        client-being-id  (temp-user)
+        registrant-being-id (temp-user)]
+    {:db/id (temp-user)
+
+     :lobbying.form/source :lobbying.form/sopr-html
+     :lobbying.form/document-id (:document_id m)
+     :lobbying.form/filepath f
+     :lobbying.form/client-registrant-same
+     (-> m :client :client_self)
+
+     :lobbying.form/signature-date
+     (-> m :datetimes :signature_date parse-time (or ""))
+
+     :lobbying.form/contact
+     (let [r (:registrant m)]
+       {:record/type :lobbying.record/contact
+        :record/represents  contact-being-id
+        :lobbying.contact/name  (or (:registrant_contact r)
+                                    (:registrant_contact_name r))
+        :lobbying.contact/phone (or (:registrant_phone r )
+                                    (:registrant_contact_phone r ))
+        :lobbying.contact/email (or (:registrant_email r)
+                                    (:registrant_contact_email r))})
+
+     :lobbying.form/registrant
+     (let [r (:registrant m)
+           registrant
+           {:record/type :lobbying.record/registrant
+            :record/represents
+            (if (-> m :client :client_self)
+              client-being-id
+              registrant-being-id)
+            :lobbying.registrant/name        (:registrant_name r)
+
+            :lobbying.registrant/self-employed-individual
+            (r :self_employed_individual)
+            :lobbying.registrant/main-address
+            {:address/first-line  (:registrant_address_one r)
+             :address/second-line (:registrant_address_two r)
+             :address/city        (:registrant_city r)
+             :address/state       (:registrant_state r)
+             :address/zipcode     (:registrant_zip r)
+             :address/country     (:registrant_country r)}
+
+            :lobbying.registrant/principal-place-of-business
+            {:address/city       (:registrant_ppb_city r)
+             :address/state      (:registrant_ppb_state r)
+             :address/zipcode    (:registrant_ppb_zip r)
+             :address/country    (:registrant_ppb_country r)}}]
+       (if-let [d (:registrant_general_description r)]
+         (assoc registrant :lobbying.registrant/description  d)
+         registrant))
+
+     ;;covers both reports and registrations
+     :lobbying.form/client
+     (let [c (:client m)
+           u (:registration_update m)
+           client
+           {:record/type :lobbying.record/client
+            :record/represents  client-being-id
+            :lobbying.client/name (:client_name c)
+
+            :lobbying.client/description
+            (or (:client_general_description c)
+                (:client_new_general_description u))
+
+            :lobbying.client/main-address
+            {:address/first-line
+             (or (:client_address c)
+                 (:client_new_address u))
+             :address/zipcode
+             (or (:client_zip c)
+                 (:client_new_zip u))
+             :address/city
+             (or (:client_city c)
+                 (:client_new_city u))
+             :address/state
+             (or (:client_state c)
+                 (:client_new_state u))
+             :address/country
+             (or (:client_country c)
+                 (:client_new_country u))}
+
+            :lobbying.client/principal-place-of-business
+            {:address/zipcode
+             (or (:client_ppb_zip c)
+                 (:client_new_ppb_zip u))
+             :address/city
+             (or (:client_ppb_city c)
+                 (:client_new_ppb_city u))
+             :address/state
+             (or (:client_ppb_state c)
+                 (:client_new_ppb_state u))
+             :address/country
+             (or (:client_ppb_country c)
+                 (:client_new_ppb_country u))}}]
+       (if u ;;hackey check to see if report or not
+         (assoc client :lobbying.client/state-or-local-government
+                (:client_state_or_local_government c))
+         client))}))
+
+(defn registration-datoms [f m]
+  (let [basic (structure-basic-form f m)
+
+        activity-being-id
+        (temp-user)
+
+        lobbyists
+        (:lobbyists m)
+
+        lobbyists-ids
         (repeatedly (count lobbyists) temp-user)
-        affiliated-organization-beings-ids
+
+
+        affiliated-organizations
+        (:affiliated_organizations m)
+
+        affiliated-organizations-ids
         (repeatedly (count affiliated-organizations) temp-user)
-        foreign-entity-beings-ids
+
+
+        foreign-entities
+        (:foreign_entities m)
+
+        foreign-entities-ids
         (repeatedly (count foreign-entities) temp-user)
 
+
+        being-ids
+        (concat [(-> basic :lobbying.form/client :record/represents)
+                 (-> basic :lobbying.form/contact :record/represents)
+                 (-> basic :lobbying.form/registrant :record/represents)
+                 activity-being-id]
+                lobbyists-ids
+                affiliated-organizations-ids
+                foreign-entities-ids)
+
         beings
-        (map new-being (concat [contact-being-id client-being-id registrant-being-id
-                                activity-being-id]
-                               lobbyist-being-ids
-                               affiliated-organization-beings-ids
-                               foreign-entity-beings-ids))
-        registration  {:db/id (d/tempid :db.part/user)
-                       :record/type :lobbying.record/registration
+        (map new-being (distinct being-ids))
 
-                       :lobbying.form/source :lobbying.form/sopr-html
-                       :lobbying.form/document-id (:document_id m)
-                       :lobbying.form/filepath f
+        registration
+        {:record/type :lobbying.record/registration
+         :lobbying.registration/house-id
+         (get-in m [:registrant :registrant_house_id])
+         :lobbying.registration/senate-id
+         (get-in m [:registrant :registrant_senate_id])
 
-                       :lobbying.form/amendment
-                       (-> m :registration_type :amendment)
-                       :lobbying.form/new-registrant
-                       (-> m :registration_type :new_registrant)
-                       :lobbying.form/new-client-for-existing-registrant
-                       (-> m :registration_type :new_client_for_existing_registrant)
-                       :lobbying.form/client-registrant-same
-                       (-> m :client :client_self)
+         :lobbying.form/amendment
+         (-> m :registration_type :amendment)
+
+         :lobbying.registration/new-registrant
+         (-> m :registration_type :new_registrant)
+         :lobbying.registration/new-client-for-existing-registrant
+         (-> m :registration_type :new_client_for_existing_registrant)
 
 
-                       :lobbying.form/house-id
-                       (get-in m [:registrant :registrant_house_id])
-                       :lobbying.form/senate-id
-                       (get-in m [:registrant :registrant_senate_id])
+         :lobbying.registration/effective-date
+         (-> m :datetimes :effective_date parse-time)
 
-                       :lobbying.form/signature-date
-                       (-> m :datetimes :signature_date parse-time)
-                       :lobbying.registration/effective-date
-                       (-> m :datetimes :effective_date parse-time)
+         :lobbying.registration/activity
+         {:record/type :lobbying.record/activity
+          :record/represents activity-being-id
+          :lobbying.activity/general-details
+          (:lobbying_issues_detail m)
+          :lobbying.activity/issue-codes
+          (map (comp string->issue-code :issue_code)
+               (:lobbying_issue m))
+          :lobbying.activity/lobbyists
+          (map structure-lobbyist
+               (range (count lobbyists))
+               lobbyists
+               lobbyists-ids)}
 
-                       :lobbying.form/client
-                       (let [c (:client m)]
-                         {:record/type :lobbying.record/client
-                          :record/represents  client-being-id
-                          :lobbying.client/name        (:client_name c)
-                          :lobbying.client/description (:client_general_description c)
+         :lobbying.registration/foreign-entities
+         (map structure-foreign-entity
+              (range (count foreign-entities))
+              foreign-entities
+              foreign-entities-ids)
 
-                          :lobbying.client/main-address
-                          {:address/first-line (:client_address c)
-                           :address/zipcode    (:client_zip c)
-                           :address/city       (:client_city c)
-                           :address/state      (:client_state c)
-                           :address/country    (:client_country c)}
-
-                          :lobbying.client/principal-place-of-business
-                          {:address/zipcode    (:client_ppb_zip c)
-                           :address/city       (:client_ppb_city c)
-                           :address/state      (:client_ppb_state c)
-                           :address/country    (:client_ppb_country c)}})
-
-                       :lobbying.form/registrant
-                       (let [r (:registrant m)]
-                         {:record/type :lobbying.record/registrant
-                          :record/represents
-                          (if (-> m :client :client_self)
-                            client-being-id
-                            registrant-being-id)
-                          :lobbying.registrant/name        (:registrant_name r)
-                          :lobbying.registrant/description (:registrant_general_description r)
-                          :lobbying.registrant/self-employed-individual
-                          (r :self_employed_individual)
-                          :lobbying.registrant/main-address
-                          {:address/first-line  (:registrant_address_one r)
-                           :address/second-line (:registrant_address_two r)
-                           :address/zipcode     (:registrant_zip r)
-                           :address/city        (:registrant_city r)
-                           :address/state       (:registrant_state r)
-                           :address/country     (:registrant_country r)}
-
-                          :lobbying.registrant/principal-place-of-business
-                          {:address/zipcode    (:registrant_ppb_zip r)
-                           :address/city       (:registrant_ppb_city r)
-                           :address/state      (:registrant_ppb_state r)
-                           :address/country    (:registrant_ppb_country r)}})
-
-                       :lobbying.form/contact
-                       (let [r (:registrant m)]
-                         {:record/type :lobbying.record/contact
-                          :record/represents contact-being-id
-                          :lobbying.contact/name  (:registrant_contact r)
-                          :lobbying.contact/phone (:registrant_phone r )
-                          :lobbying.contact/email (:registrant_email r)})
-
-                       :lobbying.registration/activity
-                       {:record/type :lobbying.record/activity
-                        :record/represents activity-being-id
-                        :lobbying.activity/general-details
-                        (:lobbying_issues_detail  m)
-                        :lobbying.activity/issue-codes
-                        (->> m :lobbying_issues
-                             (map (comp string->issue-code :issue_code)))
-                        :lobbying.activity/lobbyists
-                        (map-indexed
-                         #(do {:record/type :lobbying.record/lobbyist
-                               :record/represents (nth lobbyist-being-ids %1)
-                               :data/position %1
-                               :lobbying.lobbyist/first-name
-                               (:lobbyist_first_name %2)
-                               :lobbying.lobbyist/last-name
-                               (:lobbyist_last_name %2)
-                               :lobbying.lobbyist/suffix
-                               (:lobbyist_suffix %2)
-                               :lobbying.lobbyist/covered-official-position
-                               (:lobbyist_covered_official_position %2)})
-                         lobbyists)}
-
-                       :lobbying.registration/foreign-entities
-                       (map-indexed
-                        #(do
-                           {:record/type :lobbying.record/foreign-entity
-                            :record/represents
-                            (nth foreign-entity-beings-ids %1)
-                            :data/position %1
-                            :lobbying.foreign-entity/name
-                            (:foreign_entity_name %2)
-
-                            :lobbying.foreign-entity/amount
-                            (-> %2
-                                :foreign_entity_amount
-                                parse-dec)
-
-                            :lobbying.foreign-entity/ownership-percentage
-                            (-> %2
-                                :foreign_entity_ownership_percentage
-                                parse-dec)
-
-                            :lobbying.foreign-entity/main-address
-                            {:address/first-line
-                             (:foreign_entity_address %2)
-                             :address/city
-                             (:foreign_entity_city %2)
-                             :address/state
-                             (:foreign_entity_state %2)
-                             :address/country
-                             (:foreign_entity_country %2)}
-
-                            :lobbying.foreign-entity/principal-place-of-business
-                            {:address/country
-                             (:foreign_entity_ppb_country %2)
-                             :address/state
-                             (:foreign_entity_ppb_state %2)}})
-                        foreign-entities)
-
-                       :lobbying.registration/affiliated-organizations
-                       (map-indexed
-                        #(do {:record/type :lobbying.record/affiliated-organization
-                              :record/represents
-                              (nth affiliated-organization-beings-ids %1)
-                              :data/position %1
-                              :lobbying.affiliated-organization/name
-                              (:affiliated_organization_name %2)
-
-                              :lobbying.affiliated-organization/main-address
-                              {:address/first-line
-                               (:affiliated_organization_address %2)
-                               :address/city
-                               (:affiliated_organization_city %2)
-                               :address/state
-                               (:affiliated_organization_state %2)
-                               :address/country
-                               (:affiliated_organization_country %2)}
-
-                              :lobbying.affiliated-organization/principal-place-of-business
-                              {:address/country
-                               (:affiliated_organization_ppb_country %2)
-                               :address/state
-                               (:affiliated_organization_ppb_state %2)}})
-                        affiliated-organizations)
-                       }]
+         :lobbying.registration/affiliated-organizations
+         (map structure-lobbyist
+              (range (count affiliated-organizations))
+              affiliated-organizations
+              affiliated-organizations-ids)}]
     (conj (vec beings)
-          registration)))
+          (merge basic registration))))
+
+(defn report-datoms [f m]
+  (let [basic (structure-basic-form f m)
+
+        activities (:lobbying_activities m)
+        activities-ids
+        (repeatedly (count activities) temp-user)
+
+        lobbyists (atom [])
+
+        removed-affiliated-organizations
+        (-> m :registration_update :removed_affiliated_organizations)
+        removed-affiliated-organizations-ids
+        (repeatedly (count removed-affiliated-organizations) temp-user)
+
+        added-affiliated-organizations
+        (-> m :registration_update :added_affiliated_organizations)
+        added-affiliated-organizations-ids
+        (repeatedly (count added-affiliated-organizations) temp-user)
+
+        removed-foreign-entities
+        (-> m :registration_update :removed_foreign_entities)
+        removed-foreign-entities-ids
+        (repeatedly (count removed-foreign-entities) temp-user)
+
+        added-foreign-entities
+        (-> m :registration_update :added_foreign_entities)
+        added-foreign-entities-ids
+        (repeatedly (count added-foreign-entities) temp-user)
+
+        removed-lobbyists
+        (-> m :registration_update :removed-lobbyists)
+        removed-lobbyist-ids
+        (repeatedly (count removed-lobbyists) temp-user)
+
+        added-lobbyists
+        (-> m :registration_update :added-lobbyists)
+        added-lobbyist-ids
+        (repeatedly (count added-lobbyists) temp-user)
+
+        being-ids
+        (concat [(-> basic :lobbying.form/client :record/represents)
+                 (-> basic :lobbying.form/contact :record/represents)
+                 (-> basic :lobbying.form/registrant :record/represents)]
+                activities-ids
+                removed-affiliated-organizations-ids
+                added-affiliated-organizations-ids
+                removed-foreign-entities-ids
+                added-foreign-entities-ids)
+
+        beings
+        (map new-being (distinct being-ids))
+
+        report  {:record/type :lobbying.record/report
+
+                 :lobbying.report/year
+                 (java.lang.Long. (:report_year m))
+                 :lobbying.report/quarter
+                 (java.lang.Long. (str (nth (:report_quarter m) 1)))
+
+                 :lobbying.form/amendment
+                 (-> m :report_is_amendment)
+
+                 :lobbying.report/no-activity (:report_no_activity m)
+
+                 :lobbying.report/house-id
+                 (:client_registrant_house_id m)
+                 :lobbying.report/senate-id
+                 (:client_registrant_senate_id m)
+
+                                        ;:lobbying.report/activities
+                                        ;[]
+                 :lobbying.report/removed-lobbying-issues
+                 (map (comp string->issue-code :issue_code)
+                      (:lobbying_issuse m))
+
+                 :lobbying.report/added-affiliated-organizations
+                 (map structure-affiliated-organzation
+                      (range (count added-affiliated-organizations))
+                      added-affiliated-organizations
+                      added-affiliated-organizations-ids)
+
+                 :lobbying.report/removed-affiliated-organizations
+                 (map structure-affiliated-organzation
+                      (range (count added-affiliated-organizations))
+                      removed-affiliated-organizations
+                      removed-affiliated-organizations-ids)
+
+                 :lobbying.report/added-foreign-entities
+                 (map structure-foreign-entity
+                      (range (count added-foreign-entities))
+                      added-foreign-entities
+                      added-foreign-entities-ids)
+
+                 :lobbying.report/removed-foreign-entities
+                 (map structure-foreign-entity
+                      (range (count removed-foreign-entities))
+                      removed-foreign-entities
+                      removed-foreign-entities-ids)}
+
+        termination-fields
+        (if (-> m :report_is_termination)
+          {:lobbying.report/terminated true
+           :lobbying.report/termination-date
+           (-> m :datetimes :termination_date parse-time)}
+          {:lobbying.report/terminated false})
+
+
+
+        ;; TODO: add in  amounts for expenses and incomes
+        income-fields
+        (if (-> m :income_less_than_five_thousand)
+          {:lobbying.report/income-less-than-five-thousand true}
+          {:lobbying.report/income-less-than-five-thousand false})
+
+        expense-fields
+        (if (-> m :expense_less_than_five_thousand)
+          {:lobbying.report/expense-less-than-five-thousand true}
+          {:lobbying.report/expense-less-than-five-thousand false})]
+    (conj (vec beings)
+          (merge basic report termination-fields income-fields expense-fields))))
 
 (defn load-data! [conn]
   (doseq [datoms
           (map (comp
-                registration-datoms
+                (partial apply registration-datoms)
                 (juxt (memfn getPath)
                       (comp #(json/read-str % :key-fn keyword) slurp)))
                (list-registration-forms))
           :when (not (contains-nil? datoms))]
-    @(d/transact conn datoms)))
+    @(d/transact conn datoms))
+  (doseq [datoms
+          (map (comp
+                (partial apply report-datoms)
+                (juxt (memfn getPath)
+                      (comp #(json/read-str % :key-fn keyword) slurp)))
+               (list-report-forms))]
+    (try
+      @(d/transact conn datoms)
+      (catch Exception e
+        (pprint datoms)
+        (throw e)))))
 
 (defn load-schema! [conn]
   @(d/transact conn schema))

@@ -203,6 +203,8 @@
   [(enum            :lobbying.record/client)
    (fulltext-prop   :lobbying.client/name         "Client name.")
    (fulltext-prop   :lobbying.client/description  "Client description.")
+   (bool-prop :lobbying.client/state-or-local-government
+              "Whether the client is a state or local government.")
    (component-prop  :lobbying.client/main-address "Main address for the client.")
    (component-prop  :lobbying.client/principal-place-of-business
                     "Primary location where a taxpayers's business is
@@ -214,8 +216,8 @@
    (fulltext-prop   :lobbying.registrant/description  "Registrant description.")
    (bool-prop       :lobbying.registrant/self-employed-individual
                     "Whether an individual is self employed.")
-   (bool-prop       :lobbying.registrant/organization-or-lobbying
-                    "Whether a registrant is an organization or lobbying.")
+   (bool-prop       :lobbying.registrant/organization-or-lobbying-firm
+                    "Whether a registrant is an organization or lobbying firm.")
    (component-prop  :lobbying.registrant/main-address
                     "Main address for reaching the registrant.")
    (component-prop  :lobbying.registrant/principal-place-of-business
@@ -233,8 +235,9 @@
   [(enum            :lobbying.record/lobbyist)
    (fulltext-prop   :lobbying.lobbyist/first-name "First name of lobbyist.")
    (fulltext-prop   :lobbying.lobbyist/last-name  "Last name of lobbyist.")
+   (bool-prop       :lobbying.lobbyist/is-new     "Whether the lobbyist is new.")
    (string-prop     :lobbying.lobbyist/suffix     "Suffix of lobbyist.")
-   (fulltext-prop     :lobbying.lobbyist/covered-official-position
+   (fulltext-prop   :lobbying.lobbyist/covered-official-position
                     "No idea!")])
 
 (def activity-attributes
@@ -281,12 +284,6 @@
   [ ;;Common parts of each form
    (bool-prop       :lobbying.form/amendment
                     "Whether the form is an amendment.")
-   (indexed-string-prop    :lobbying.form/house-id
-                           "Id given out the clerk of the house of
-                     representatives identiying a client and registrant.")
-   (indexed-string-prop    :lobbying.form/senate-id
-                           "Id given out the senate identiying a client and
-                     registrant.")
    (instant-prop    :lobbying.form/signature-date
                     "We have no idea what this means.")
    (component-prop  :lobbying.form/client
@@ -308,11 +305,20 @@
 
 (def registration-form-attributes
   [(enum            :lobbying.record/registration)
-   (bool-prop       :lobbying.form/new-registrant
+
+   (indexed-string-prop
+    :lobbying.registration/house-id
+    "Id given out by the clerk of the house of representatives
+    identifying a registrant. Unsure what this actually means.")
+   (indexed-string-prop
+    :lobbying.registration/senate-id
+    "Id given out by the senate identifying a registrant.")
+
+   (bool-prop       :lobbying.registration/new-registrant
                     "Whether the form is for an new registrant.")
-   (bool-prop       :lobbying.form/new-client-for-existing-registrant
-                    "Whether the form is for an new client for an existing
-              registrant.")
+   (bool-prop       :lobbying.registration/new-client-for-existing-registrant
+                    "Whether the form is for an new client for an
+                    existing registrant.")
    (instant-prop    :lobbying.registration/effective-date
                     "No idea what this one actually means.")
    (component-props :lobbying.registration/affiliated-organizations
@@ -324,6 +330,45 @@
 
 (def report-form-attributes
   [(enum            :lobbying.record/report)
+
+   (indexed-string-prop
+    :lobbying.report/house-id
+    "Id given out by the clerk of the house of representatives
+    identifying a client and registrant. Still unsure what it actually
+    means.")
+   (indexed-string-prop
+    :lobbying.report/senate-id
+    "Id given out by the senate identifying a client and registrant.")
+
+   (long-prop        :lobbying.report/quarter
+                     "The quarter the report covers.")
+   (long-prop        :lobbying.report/year
+                     "The year the report covers.")
+
+   (bool-prop       :lobbying.report/terminated
+                    "Whether the report indicates the
+                    client-registrant relationship has been
+                    terminated.")
+   (instant-prop    :lobbying.report/termination-date
+                    "If the report is a termination, this is the date
+                    the terimation occurred.")
+
+   (dec-prop        :lobbying.report/income
+                    "The income the registrant was paid for it's services.")
+   (dec-prop        :lobbying.report/expense
+                    "The expenses the registrant incurred while providing services.")
+   (ref-prop        :lobbying.report/reporting-method
+                    "How the expenses are reported.")
+   (bool-prop       :lobbying.report/no-activity
+                    "Flag indicating whether there was any activity
+                    during this period.")
+   (bool-prop       :lobbying.report/expense-less-than-five-thousand
+                    "Flag indicating whether the expenses incurred
+                    were less than five thousand dollars.")
+   (bool-prop       :lobbying.report/income-less-than-five-thousand
+                    "Flag indicating whether the income gained was
+                    less than five thousand dollars.")
+
    (component-props :lobbying.report/removed-foreign-entities
                     "Removed foreign entities.")
    (component-props :lobbying.report/added-foreign-entities
@@ -332,6 +377,8 @@
                     "Removed affiliated organizations.")
    (component-props :lobbying.report/added-affiliated-organizations
                     "Added affiliated organizations.")
+
+                                        ;TODO: not done
    (component-props :lobbying.report/removed-lobbyists
                     "Removed lobbyists.")
    (component-props :lobbying.report/added-lobbyists

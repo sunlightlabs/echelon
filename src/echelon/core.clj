@@ -39,8 +39,11 @@
         data (vec (concat adds retracts))]
     data))
 
-(def rules '[[(name-of ?record ?name) [?record :lobbying.client/name ?name]]
-             [(name-of ?record ?name) [?record :lobbying.registrant/name ?name]]])
+(def rules
+  '[[(name-of ?record ?name) [?record :lobbying.client/name ?name]]
+    [(name-of ?record ?name) [?record :lobbying.registrant/name ?name]]
+    [(either-form ?form) [?form :record/type :lobbying.record/registration]]
+    [(either-form ?form) [?form :record/type :lobbying.record/report]]])
 
 (defn beings-and-names [dbc]
   (d/q '[:find ?being ?name :in $ %
