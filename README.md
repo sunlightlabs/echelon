@@ -88,13 +88,38 @@ $ head output/names-output.c
 > would like it to be. (Saul D. Alinsky)
 
 Before outlining the conceptual framework that supports ECHELON,
-sadly, we must first dash your hopes and implicit assumptions about
-the quality of government data against the harsh uncaring rocks of
-reality. We will focus on the lobbying disclosure data, but the low
+sadly, we must first dash your high hopes and implicit assumptions
+about the quality of government data against the harsh uncaring rocks
+of reality. We will focus on the lobbying disclosure data, but the low
 level of quality we will soon see is the rule rather than the
-exception.
+exception when it comes to working with data from the government.
 
+To start, please
+[take a look at this form](http://soprweb.senate.gov/index.cfm?event=getFilingDetails&filingID=db010582-34a1-4a89-bea4-03c4ed64a2c7&filingTypeID=85). The
+linked document is a disclosure form filed by the Sunquist group
+(which was formerly known as Sunquist Anthony) detailing the fact that
+the aforementioned group would be lobbying on behalf of AIRCELL,
+INC. The form is what the Sunquist group submitted to the Senate
+Office of Public Record to register the fact that the group would be
+lobbying on behalf of AIRCELL, INC. This form contains a large amount
+of information and has some useful identifiers associated with it. The
+senate and house ID's look especially promising in regards to being
+able to identify the groups involved. But, just as it goes in any good
+horror story, we will soon see our fortunes slowly and irrevocably
+reversed, leaving us to pine for those auspicious and halcyon days of
+yore that were so full of promise.
 
+As a side note, this is the data we are actually working with in
+ECHELON. We've considered the bulk downloads offered by the senate and
+found that they lacked some information and didn't get updated timely
+enough for our purposes. We've built tools that allow us to scrape the
+data from these hundreds of thousands of web forms as often as
+necessary. So, these forms are the best we've got in terms of lobbying
+disclosures and so we must make the best of them.
+
+To motivate this inquiry more, let's say that we wanted to know how
+much money AIRCELL, INC has spent on paying firms and organizations to
+lobby on it's behalf.
 
 ## Challenges
 
