@@ -1,6 +1,6 @@
 # ECHELON
 
-<img align="right" src="http://upload.wikimedia.org/wikipedia/commons/2/2f/Menwith-hill-radome.jpg" width=250 border=10/>
+<img align="right" src="http://upload.wikimedia.org/wikipedia/commons/2/2f/Menwith-hill-radome.jpg" width=200 border=10/>
 
 ECHELON ingests and reconciles everything it can find relating to the
 government and assigns unique ID's to the beings it finds. In it's
