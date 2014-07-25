@@ -2,15 +2,44 @@
 
 <img align="right" src="http://upload.wikimedia.org/wikipedia/commons/2/2f/Menwith-hill-radome.jpg" width=200 border=10/>
 
-ECHELON ingests and reconciles everything it can find relating to the
-government and assigns unique ID's to the beings it finds. In it's
-current form, this means that ECHELON ingests and analyzes the forms
-that lobbyists file to disclose their activities each year. It
-attempts to perform a reasonable deterministic entity resolution
-across all the beings it knows of. Sadly, there are reliable no
-primary keys identifying the various lobbying firms, clients and
-lobbyists and so we must do our best to guess which beings are the
-same and assign our own arbitrary keys to whatever we come up with.
+ECHELON is a project designed to make up for the government of the
+United States' shortcomings in regards to disclosures and open
+data. Many an intrepid researcher has tried to ask a simple question
+about the workings of government only to find themselves stymied by
+the poor quality of data released and activities disclosed. We use a
+variety of computational techniques and clever database design to
+overcome the hurdles of trying to model the government inside a
+computer.
+
+Overarching generalities aside, ECHELON's main purpose is two
+fold. Firstly, ECHELON takes data from the government and structures
+it in useful ways. This is accomplished by creating models derived
+from domain expertise in the given data and then inserting the data
+into [Datomic](http://www.datomic.com/), a
+[curious database](http://www.infoq.com/presentations/datomic-functional-database)
+with a
+[powerful query engine](http://docs.datomic.com/query.html). Once the
+data has been loaded, ECHELON goes beyond just providing a better
+interface by enhancing the data via
+[record linkage](http://en.wikipedia.org/wiki/Record_linkage) and
+[information extraction](http://en.wikipedia.org/wiki/Information_extraction)
+techniques. In particular, this means that we can figure out that
+something named "Big Company Incorporated (formerly known as Small
+Company co.)"  represents the same being as "SMALL COMPANY INC.". We
+then provide functions for working with the representations needed to
+model these abstract relationships. To accomplish both of the previous
+objectives, ECHELON aims to provide durable and reliable ID's for the
+various beings that are involved in the workings of the government.
+
+ECHELON is very much a work in progress and currently only ingests
+data from the Senate Lobbying Disclosure website and performs only
+simple calculations for resolving the various beings in the data
+set. We have many other data sources we are interested in pulling in
+and are working towards ingesting them as soon as possible. And of
+course, there are far more complicated record linkage and information
+extraction techniques we have planned as well. The government is one
+of the largest and most complicated systems mankind has ever assembled
+and, understandably, there is much work to be done.
 
 ## Usage
 
@@ -52,6 +81,19 @@ $ DATA_LOCATION=~/data/sopr_html lein run load
 $ lein run match
 $ head output/names-output.c
 ```
+
+## Conceptual Framework
+
+> As an organizer I start from where the world is, as it is, not as I
+> would like it to be. (Saul D. Alinsky)
+
+Before outlining the conceptual framework that supports ECHELON,
+sadly, we must first dash your hopes and implicit assumptions about
+the quality of government data against the harsh uncaring rocks of
+reality. We will focus on the lobbying disclosure data, but the low
+level of quality we will soon see is the rule rather than the
+exception.
+
 
 
 ## Challenges
