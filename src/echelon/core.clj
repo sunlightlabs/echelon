@@ -41,7 +41,7 @@
 
 (def rules
   '[[(name-of ?record ?name) [?record :lobbying.client/name ?name]]
-    [(name-of ?record ?name) [?record :lobbying.registrant/name ?name]]
+    [(name-of ?record ?name) [?record :lobbying.registrant/organization-name ?name]]
     [(either-form ?form) [?form :record/type :lobbying.record/registration]]
     [(either-form ?form) [?form :record/type :lobbying.record/report]]])
 
@@ -67,6 +67,7 @@
              (mapcat (partial merges-for-beings dbc))
              (d/with dbc)
              :db-after)]
+    (println "Trying to print how-many?")
     (println (how-many? dbc))
     dbc))
 
@@ -93,7 +94,7 @@
     (println "Loading Database...")
     (load-database! c)
     (println "Loaded!")
-    (println (how-many? (db c)))))
+    (print-status)))
 
 (defn print-status []
   (let [c (d/connect uri)]

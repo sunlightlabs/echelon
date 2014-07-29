@@ -212,7 +212,17 @@
 
 (def registrant-attributes
   [(enum            :lobbying.record/registrant)
-   (fulltext-prop   :lobbying.registrant/name         "Registrant name.")
+   (fulltext-prop   :lobbying.registrant/name
+                    "Registrant name. Could be self employed
+                    individual, organization, or lobbying firm.")
+   (fulltext-prop   :lobbying.registrant/organization-name
+                    "Name for a lobbying firm or organization.")
+   (fulltext-prop   :lobbying.registrant/first-name
+                    "First name of a self employed individual registring for lobbying.")
+   (fulltext-prop   :lobbying.registrant/last-name
+                    "Last name of a self employed individual registring for lobbying.")
+   (fulltext-prop   :lobbying.registrant/prefix
+                    "Prefix for a self employed individual registring for lobbying.")
    (fulltext-prop   :lobbying.registrant/description  "Registrant description.")
    (bool-prop       :lobbying.registrant/self-employed-individual
                     "Whether an individual is self employed.")

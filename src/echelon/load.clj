@@ -6,9 +6,11 @@
             [echelon.util :refer [contains-nil?]]
             [me.raynes.fs :as fs]
             [clojure.pprint :refer [pprint]]
-            [clj-time.format :as f]))
+            [clj-time.format :as f]
+            [environ.core :refer [env]]))
 
-(def datadir (System/getenv "DATA_LOCATION"))
+(def datadir (or (env :data-location)
+                 (System/getenv "DATA_LOCATION")))
 
 (defn list-registration-forms []
   (mapcat #(fs/glob (str datadir "/" % "/REG/*"))
@@ -24,8 +26,10 @@
    :being/id (str (d/squuid))})
 
 (defn parse-time [s]
-  (if (= s "03/031/2008")
-    (java.util.Date. "03/31/2008")
+  (condp = s
+    "03/031/2008"   (java.util.Date. "03/31/2008")
+    "March 31, 2011"   (java.util.Date. "03/31/2011")
+    "May 31, 2011"   (java.util.Date. "05/31/2011")
     (some->> s
              (f/parse (f/formatters :date-hour-minute-second))
              (.toDate))))
@@ -121,105 +125,120 @@
 (defn structure-basic-form [f m]
   (let [contact-being-id (temp-user)
         client-being-id  (temp-user)
-        registrant-being-id (temp-user)]
-    {:db/id (temp-user)
+        registrant-being-id (temp-user)
+        basic-form
+        {:db/id (temp-user)
+         :lobbying.form/source :lobbying.form/sopr-html
+         :lobbying.form/document-id (:document_id m)
+         :lobbying.form/filepath f
+         :lobbying.form/client-registrant-same
+         (-> m :client :client_self)
 
-     :lobbying.form/source :lobbying.form/sopr-html
-     :lobbying.form/document-id (:document_id m)
-     :lobbying.form/filepath f
-     :lobbying.form/client-registrant-same
-     (-> m :client :client_self)
+         :lobbying.form/contact
+         (let [r (:registrant m)]
+           {:record/type :lobbying.record/contact
+            :record/represents  contact-being-id
+            :lobbying.contact/name  (or (:registrant_contact r)
+                                        (:registrant_contact_name r))
+            :lobbying.contact/phone (or (:registrant_phone r )
+                                        (:registrant_contact_phone r ))
+            :lobbying.contact/email (or (:registrant_email r)
+                                        (:registrant_contact_email r))})
 
-     :lobbying.form/signature-date
-     (-> m :datetimes :signature_date parse-time (or ""))
+         :lobbying.form/registrant
+         (let [r (:registrant m)
+               basic-registrant
+               {:record/type :lobbying.record/registrant
+                :record/represents
+                registrant-being-id
 
-     :lobbying.form/contact
-     (let [r (:registrant m)]
-       {:record/type :lobbying.record/contact
-        :record/represents  contact-being-id
-        :lobbying.contact/name  (or (:registrant_contact r)
-                                    (:registrant_contact_name r))
-        :lobbying.contact/phone (or (:registrant_phone r )
-                                    (:registrant_contact_phone r ))
-        :lobbying.contact/email (or (:registrant_email r)
-                                    (:registrant_contact_email r))})
+                :lobbying.registrant/main-address
+                {:address/first-line  (:registrant_address_one r)
+                 :address/second-line (:registrant_address_two r)
+                 :address/city        (:registrant_city r)
+                 :address/state       (:registrant_state r)
+                 :address/zipcode     (:registrant_zip r)
+                 :address/country     (:registrant_country r)}
 
-     :lobbying.form/registrant
-     (let [r (:registrant m)
-           registrant
-           {:record/type :lobbying.record/registrant
-            :record/represents
-            (if (-> m :client :client_self)
-              client-being-id
-              registrant-being-id)
-            :lobbying.registrant/name        (:registrant_name r)
+                :lobbying.registrant/principal-place-of-business
+                {:address/city       (:registrant_ppb_city r)
+                 :address/state      (:registrant_ppb_state r)
+                 :address/zipcode    (:registrant_ppb_zip r)
+                 :address/country    (:registrant_ppb_country r)
 
-            :lobbying.registrant/self-employed-individual
-            (r :self_employed_individual)
-            :lobbying.registrant/main-address
-            {:address/first-line  (:registrant_address_one r)
-             :address/second-line (:registrant_address_two r)
-             :address/city        (:registrant_city r)
-             :address/state       (:registrant_state r)
-             :address/zipcode     (:registrant_zip r)
-             :address/country     (:registrant_country r)}
 
-            :lobbying.registrant/principal-place-of-business
-            {:address/city       (:registrant_ppb_city r)
-             :address/state      (:registrant_ppb_state r)
-             :address/zipcode    (:registrant_ppb_zip r)
-             :address/country    (:registrant_ppb_country r)}}]
-       (if-let [d (:registrant_general_description r)]
-         (assoc registrant :lobbying.registrant/description  d)
-         registrant))
+                 :lobbying.registrant/self-employed-individual
+                 (r :self_employed_individual)}}
+               registrant
+               (if (r :registrant_name)
+                 (assoc basic-registrant
+                   :lobbying.registrant/name (:registrant_name r))
+                 (if (r :self_employed_individual)
+                   (merge basic-registrant
+                          {:lobbying.registrant/prefix
+                           (:registrant_individual_prefix r)
 
-     ;;covers both reports and registrations
-     :lobbying.form/client
-     (let [c (:client m)
-           u (:registration_update m)
-           client
-           {:record/type :lobbying.record/client
-            :record/represents  client-being-id
-            :lobbying.client/name (:client_name c)
+                           :lobbying.registrant/first-name
+                           (:registrant_individual_firstname r)
 
-            :lobbying.client/description
-            (or (:client_general_description c)
-                (:client_new_general_description u))
+                           :lobbying.registrant/last-name
+                           (:registrant_individual_lastname r)})
+                   (assoc basic-registrant
+                     :lobbying.registrant/organization-name
+                     (:registrant_org_name r))))]
+           (if-let [d (:registrant_general_description r)]
+             (assoc registrant :lobbying.registrant/description  d)
+             registrant))
 
-            :lobbying.client/main-address
-            {:address/first-line
-             (or (:client_address c)
-                 (:client_new_address u))
-             :address/zipcode
-             (or (:client_zip c)
-                 (:client_new_zip u))
-             :address/city
-             (or (:client_city c)
-                 (:client_new_city u))
-             :address/state
-             (or (:client_state c)
-                 (:client_new_state u))
-             :address/country
-             (or (:client_country c)
-                 (:client_new_country u))}
+         ;;covers both reports and registrations
+         :lobbying.form/client
+         (let [c (:client m)
+               u (:registration_update m)
+               client
+               {:record/type :lobbying.record/client
+                :record/represents  client-being-id
+                :lobbying.client/name (:client_name c)
 
-            :lobbying.client/principal-place-of-business
-            {:address/zipcode
-             (or (:client_ppb_zip c)
-                 (:client_new_ppb_zip u))
-             :address/city
-             (or (:client_ppb_city c)
-                 (:client_new_ppb_city u))
-             :address/state
-             (or (:client_ppb_state c)
-                 (:client_new_ppb_state u))
-             :address/country
-             (or (:client_ppb_country c)
-                 (:client_new_ppb_country u))}}]
-       (if u ;;hackey check to see if report or not
-         (assoc client :lobbying.client/state-or-local-government
-                (:client_state_or_local_government c))
-         client))}))
+                :lobbying.client/description
+                (or (:client_general_description c)
+                    (:client_new_general_description u))
+
+                :lobbying.client/main-address
+                {:address/first-line
+                 (or (:client_address c)
+                     (:client_new_address u))
+                 :address/zipcode
+                 (or (:client_zip c)
+                     (:client_new_zip u))
+                 :address/city
+                 (or (:client_city c)
+                     (:client_new_city u))
+                 :address/state
+                 (or (:client_state c)
+                     (:client_new_state u))
+                 :address/country
+                 (or (:client_country c)
+                     (:client_new_country u))}
+
+                :lobbying.client/principal-place-of-business
+                {:address/zipcode
+                 (or (:client_ppb_zip c)
+                     (:client_new_ppb_zip u))
+                 :address/city
+                 (or (:client_ppb_city c)
+                     (:client_new_ppb_city u))
+                 :address/state
+                 (or (:client_ppb_state c)
+                     (:client_new_ppb_state u))
+                 :address/country
+                 (or (:client_ppb_country c)
+                     (:client_new_ppb_country u))}}]
+           (if-let [s (:client_state_or_local_government c)]
+             (assoc client :lobbying.client/state-or-local-government s)
+             client))}]
+    (if-let [t (-> m :datetimes :signature_date parse-time)]
+      (assoc basic-form :lobbying.form/signature-date t)
+      basic-form)))
 
 (defn registration-datoms [f m]
   (let [basic (structure-basic-form f m)
@@ -413,8 +432,6 @@
            (-> m :datetimes :termination_date parse-time)}
           {:lobbying.report/terminated false})
 
-
-
         ;; TODO: add in  amounts for expenses and incomes
         income-fields
         (if (-> m :income_less_than_five_thousand)
@@ -429,25 +446,33 @@
           (merge basic report termination-fields income-fields expense-fields))))
 
 (defn load-data! [conn]
-  (doseq [datoms
-          (map (comp
-                (partial apply registration-datoms)
-                (juxt (memfn getPath)
-                      (comp #(json/read-str % :key-fn keyword) slurp)))
-               (list-registration-forms))
-          :when (not (contains-nil? datoms))]
-    @(d/transact conn datoms))
-  (doseq [datoms
-          (map (comp
-                (partial apply report-datoms)
-                (juxt (memfn getPath)
-                      (comp #(json/read-str % :key-fn keyword) slurp)))
-               (list-report-forms))]
-    (try
-      @(d/transact conn datoms)
-      (catch Exception e
-        (pprint datoms)
-        (throw e)))))
+  (println "Loading registrations")
+  (doseq [result (->> (list-registration-forms)
+                        (map
+                         (comp
+                          (partial apply registration-datoms)
+                          (juxt (memfn getPath)
+                                (comp #(json/read-str % :key-fn keyword) slurp))))
+                        (filter (complement contains-nil?))
+                        (pmap (partial d/transact conn)))]
+      (try @result
+           (catch Exception e
+             (pprint result)
+             (throw e))))
+
+  (println "Loading reports")
+  (doseq [result (->> (list-report-forms)
+                      (map (juxt (memfn getPath)
+                                 (comp #(json/read-str % :key-fn keyword) slurp)))
+                      (filter #(and (-> % second :client :client_name nil? not)
+                                    (-> % second :report_quarter nil? not)))
+                      (map (partial apply report-datoms))
+                      (filter (complement contains-nil?))
+                      (pmap (partial d/transact conn)))]
+    (try @result
+         (catch Exception e
+           (pprint result)
+           (pprint e)))))
 
 (defn load-schema! [conn]
   @(d/transact conn schema))
