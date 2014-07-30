@@ -36,3 +36,6 @@
   (if (coll? arg)
     (reduce #(or %1 %2) false (map contains-nil? arg))
     (nil? arg)))
+
+(defn transpose [m]
+  (apply mapv vector m))

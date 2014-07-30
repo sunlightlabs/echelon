@@ -3,11 +3,13 @@
             [clojure.data.json :as json]
             [echelon.text :refer [clean]]
             [echelon.schema :refer [schema string->issue-code]]
-            [echelon.util :refer [contains-nil?]]
+            [echelon.util :refer [contains-nil? transpose]]
             [me.raynes.fs :as fs]
             [clojure.pprint :refer [pprint]]
             [clj-time.format :as f]
-            [environ.core :refer [env]]))
+            [environ.core :refer [env]]
+            [taoensso.timbre :as timbre]))
+(timbre/refer-timbre)
 
 (def datadir (or (env :data-location)
                  (System/getenv "DATA_LOCATION")))
@@ -56,7 +58,7 @@
                 :lobbying.lobbyist/suffix
                 (:lobbyist_suffix m)
                 :lobbying.lobbyist/covered-official-position
-                (:lobbyist_covered_official_position m)}]
+                (:lobbyist_covered_position m)}]
     (if (nil? (:lobbyist_is_new m))
       basic
       (assoc basic :lobbying.lobbyist/is-new (:lobbyist_is_new m)))))
@@ -319,12 +321,33 @@
               foreign-entities-ids)
 
          :lobbying.registration/affiliated-organizations
-         (map structure-lobbyist
+         (map structure-affiliated-organzation
               (range (count affiliated-organizations))
               affiliated-organizations
               affiliated-organizations-ids)}]
     (conj (vec beings)
           (merge basic registration))))
+
+(defn structure-report-activity
+  [i {:keys [general_issue_area specific_issues houses_and_agencies
+             foreign_entity_interest foreign_entity_interest_none
+             lobbyists]}
+   aid]
+  (let [lobbyists-ids (repeatedly (count lobbyists) temp-user )]
+    [lobbyists-ids
+     {:record/type :lobbying.record/activity
+      :data/position i
+      :record/represents aid
+      :lobbying.activity/specific-issues specific_issues
+      :lobbying.activity/houses-and-agencies houses_and_agencies
+      :lobbying.activity/no-foreign-entity-interest foreign_entity_interest_none
+      :lobbying.activity/foreign-entity-interest foreign_entity_interest
+      :lobbying.activity/issue-code (string->issue-code  general_issue_area)
+      :lobbying.activity/lobbyists
+      (map structure-lobbyist
+           (range (count lobbyists))
+           lobbyists
+           lobbyists-ids)}]))
 
 (defn report-datoms [f m]
   (let [basic (structure-basic-form f m)
@@ -333,7 +356,16 @@
         activities-ids
         (repeatedly (count activities) temp-user)
 
-        lobbyists (atom [])
+        [lobbyists-ids,structured-activities]
+        (if (empty? activities)
+          [[] []]
+          (->> (map structure-report-activity
+                    (range (count activities))
+                    activities
+                    activities-ids)
+               transpose))
+        lobbyists-ids (apply concat lobbyists-ids)
+
 
         removed-affiliated-organizations
         (-> m :registration_update :removed_affiliated_organizations)
@@ -370,6 +402,7 @@
                  (-> basic :lobbying.form/contact :record/represents)
                  (-> basic :lobbying.form/registrant :record/represents)]
                 activities-ids
+                lobbyists-ids
                 removed-affiliated-organizations-ids
                 added-affiliated-organizations-ids
                 removed-foreign-entities-ids
@@ -395,8 +428,9 @@
                  :lobbying.report/senate-id
                  (:client_registrant_senate_id m)
 
-                                        ;:lobbying.report/activities
-                                        ;[]
+                 :lobbying.report/activities
+                 structured-activities
+
                  :lobbying.report/removed-lobbying-issues
                  (map (comp string->issue-code :issue_code)
                       (:lobbying_issuse m))
@@ -426,7 +460,7 @@
                       removed-foreign-entities-ids)}
 
         termination-fields
-        (if (-> m :report_is_termination)
+        (if (m :report_is_termination)
           {:lobbying.report/terminated true
            :lobbying.report/termination-date
            (-> m :datetimes :termination_date parse-time)}
@@ -434,19 +468,29 @@
 
         ;; TODO: add in  amounts for expenses and incomes
         income-fields
-        (if (-> m :income_less_than_five_thousand)
+        (if (m :income_less_than_five_thousand)
           {:lobbying.report/income-less-than-five-thousand true}
-          {:lobbying.report/income-less-than-five-thousand false})
+          {:lobbying.report/income-less-than-five-thousand false
+           :lobbying.report/income
+           (parse-dec (if-let [i (:income_amount m)] i "0"))})
 
         expense-fields
-        (if (-> m :expense_less_than_five_thousand)
+        (if (m :expense_less_than_five_thousand)
           {:lobbying.report/expense-less-than-five-thousand true}
-          {:lobbying.report/expense-less-than-five-thousand false})]
+          {:lobbying.report/expense-less-than-five-thousand false
+           :lobbying.report/expense
+           (parse-dec (if-let [i (:expense_amount m)] i "0"))})
+
+        reporting-method
+        (if-let [mt (m :expense_reporting_method)]
+          {:lobbying.report/reporting-method (keyword (str "lobbying.reporting-method/" mt))}
+          {})]
     (conj (vec beings)
-          (merge basic report termination-fields income-fields expense-fields))))
+          (merge basic report termination-fields income-fields expense-fields
+                 reporting-method))))
 
 (defn load-data! [conn]
-  (println "Loading registrations")
+  (info "Loading registrations")
   (doseq [result (->> (list-registration-forms)
                         (map
                          (comp
@@ -454,13 +498,13 @@
                           (juxt (memfn getPath)
                                 (comp #(json/read-str % :key-fn keyword) slurp))))
                         (filter (complement contains-nil?))
-                        (pmap (partial d/transact conn)))]
+                        (pmap (partial d/transact-async conn)))]
       (try @result
            (catch Exception e
              (pprint result)
              (throw e))))
 
-  (println "Loading reports")
+  (info "Loading reports")
   (doseq [result (->> (list-report-forms)
                       (map (juxt (memfn getPath)
                                  (comp #(json/read-str % :key-fn keyword) slurp)))
@@ -468,7 +512,7 @@
                                     (-> % second :report_quarter nil? not)))
                       (map (partial apply report-datoms))
                       (filter (complement contains-nil?))
-                      (pmap (partial d/transact conn)))]
+                      (pmap (partial d/transact-async conn)))]
     (try @result
          (catch Exception e
            (pprint result)
@@ -478,7 +522,7 @@
   @(d/transact conn schema))
 
 (defn load-database! [conn]
-  (println "Schema loading...")
+  (info "Schema loading...")
   (load-schema! conn)
-  (println "Data loading...")
+  (info "Data loading...")
   (load-data! conn))

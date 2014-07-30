@@ -252,20 +252,34 @@
 
 (def activity-attributes
   [(enum            :lobbying.record/activity)
+   ;;Both types
+   (component-props :lobbying.activity/lobbyists
+                    "The foreign entities for the activity.")
+
+   ;;Activities from registrations
    (fulltext-prop   :lobbying.activity/general-details
                     "Details about the lobbying generally done by the
                     registrant for the client on various issues.")
-   (fulltext-prop   :lobbying.activity/specific-details
+   (ref-props       :lobbying.activity/issue-codes
+                    "The issue codes generally associated with the activity.")
+
+   ;;Activities from reports
+   (fulltext-prop   :lobbying.activity/specific-issues
                     "Details about the lobbying specifically done by the
                     registrant for the client.")
-   ;;foreign interest?
-   ;; (string-prop  :lobbying.activity/houses-and-agencies
-   ;;                  "Details about the lobbying specifically done by the
-   ;;                  registrant for the client.")
-   (component-props :lobbying.activity/issue-codes
-                    "The issue codes generally associated with the activity.")
-   (component-props :lobbying.activity/lobbyists
-                    "The foreign entities for the activity.")])
+   (ref-prop       :lobbying.activity/issue-code
+                   "The issue code associated with a specific activity.")
+   (string-prop     :lobbying.activity/houses-and-agencies
+                    "Details about the lobbying specifically done by the
+                    registrant for the client.")
+   (string-prop     :lobbying.activity/foreign-entity-interest
+                    "The explanation given for why a foreign entity
+                    is interested in a particular activity. ")
+   (bool-prop     :lobbying.activity/no-foreign-entity-interest
+                  "Whether the lobbyist indicated if a foreign entity was interested.")
+
+
+   ])
 
 
 (def foreign-entity-attributes
@@ -367,6 +381,9 @@
                     "The income the registrant was paid for it's services.")
    (dec-prop        :lobbying.report/expense
                     "The expenses the registrant incurred while providing services.")
+   (enum :lobbying.reporting-method/a)
+   (enum :lobbying.reporting-method/b)
+   (enum :lobbying.reporting-method/c)
    (ref-prop        :lobbying.report/reporting-method
                     "How the expenses are reported.")
    (bool-prop       :lobbying.report/no-activity
@@ -393,8 +410,8 @@
                     "Removed lobbyists.")
    (component-props :lobbying.report/added-lobbyists
                     "Added lobbyists.")
-   (component-props :lobbying.registration/activities
-                    "Initial description of lobbying activity")
+   (component-props :lobbying.report/activities
+                    "List of lobbying activities that quarter")
    (ref-props       :lobbying.report/removed-lobbying-issues
                     "Removed lobbying issues.")
    (ref-props       :lobbying.report/added-lobbying-issues
