@@ -1,6 +1,9 @@
 (ns echelon.util
   (:require [jordanlewis.data.union-find :refer
-             [union-find union get-canonical]]))
+             [union-find union get-canonical]]
+            [datomic.api :as d :refer [db q]]
+            [taoensso.timbre :as timbre]))
+(timbre/refer-timbre)
 
 (defn group-by-features
   "Like group-by, but inserts values multiple times based on f
@@ -39,3 +42,26 @@
 
 (defn transpose [m]
   (apply mapv vector m))
+
+(defn how-many?
+  "How many beings are there?"
+  [dbc]
+  (let [f #(-> (d/q '[:find (count ?being)
+                      :in $ ?type
+                      :where
+                      [?r :record/type ?type]
+                      [?r :record/represents ?being]]
+                    dbc
+                    %)
+               ffirst)]
+    {:clients    (f :lobbying.record/client)
+     :registrant (f :lobbying.record/registrant)
+     :lobbyist   (f :lobbying.record/lobbyist)
+     :activity   (f :lobbying.record/activity)
+     :contact    (f :lobbying.record/contact)}))
+
+(defn db-prn
+  [stage dbc]
+  (info stage)
+  (info (how-many? dbc))
+  dbc)

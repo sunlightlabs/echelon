@@ -276,10 +276,7 @@
                     "The explanation given for why a foreign entity
                     is interested in a particular activity. ")
    (bool-prop     :lobbying.activity/no-foreign-entity-interest
-                  "Whether the lobbyist indicated if a foreign entity was interested.")
-
-
-   ])
+                  "Whether the lobbyist indicated if a foreign entity was interested.")])
 
 
 (def foreign-entity-attributes

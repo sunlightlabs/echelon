@@ -3,7 +3,7 @@
             [clojure.data.json :as json]
             [echelon.text :refer [clean]]
             [echelon.schema :refer [schema string->issue-code]]
-            [echelon.util :refer [contains-nil? transpose]]
+            [echelon.util :refer [contains-nil? transpose db-prn]]
             [me.raynes.fs :as fs]
             [clojure.pprint :refer [pprint]]
             [clj-time.format :as f]
@@ -14,13 +14,17 @@
 (def datadir (or (env :data-location)
                  (System/getenv "DATA_LOCATION")))
 
-(defn list-registration-forms []
-  (mapcat #(fs/glob (str datadir "/" % "/REG/*"))
-          (range 2008 2015)))
+(defn registration-jsons []
+  (map (juxt (memfn getPath)
+             (comp #(json/read-str % :key-fn keyword) slurp))
+       (mapcat #(fs/glob (str datadir "/" % "/REG/*"))
+               (range 2008 2015))))
 
-(defn list-report-forms []
-  (apply concat (for [y (range 2008 2015) q (range 1 5)]
-                  (fs/glob (str datadir "/" y "/Q" q "/*")))))
+(defn report-jsons []
+  (map (juxt (memfn getPath)
+             (comp #(json/read-str % :key-fn keyword) slurp))
+       (apply concat (for [y (range 2008 2015) q (range 1 5)]
+                       (fs/glob (str datadir "/" y "/Q" q "/*"))))))
 
 (defn new-being [id]
   {:db/id id
@@ -491,23 +495,17 @@
 
 (defn load-data! [conn]
   (info "Loading registrations")
-  (doseq [result (->> (list-registration-forms)
-                        (map
-                         (comp
-                          (partial apply registration-datoms)
-                          (juxt (memfn getPath)
-                                (comp #(json/read-str % :key-fn keyword) slurp))))
-                        (filter (complement contains-nil?))
-                        (pmap (partial d/transact-async conn)))]
-      (try @result
-           (catch Exception e
-             (pprint result)
-             (throw e))))
+  (doseq [result (->> (registration-jsons)
+                      (map (partial apply registration-datoms))
+                      (filter (complement contains-nil?))
+                      (pmap (partial d/transact-async conn)))]
+    (try @result
+         (catch Exception e
+           (pprint result)
+           (throw e))))
 
   (info "Loading reports")
-  (doseq [result (->> (list-report-forms)
-                      (map (juxt (memfn getPath)
-                                 (comp #(json/read-str % :key-fn keyword) slurp)))
+  (doseq [result (->> (report-jsons)
                       (filter #(and (-> % second :client :client_name nil? not)
                                     (-> % second :report_quarter nil? not)))
                       (map (partial apply report-datoms))
@@ -516,7 +514,10 @@
     (try @result
          (catch Exception e
            (pprint result)
-           (pprint e)))))
+           (pprint e))))
+  (db-prn "Loaded" (db (d/connect conn)))
+
+  )
 
 (defn load-schema! [conn]
   @(d/transact conn schema))

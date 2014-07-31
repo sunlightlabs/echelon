@@ -1,30 +1,13 @@
 (ns echelon.core
   (:require [datomic.api :as d :refer [db q]]
             [clojure.pprint :refer [pprint]]
-            [echelon.load :refer [load-database!]]
+            [echelon.load :refer [load-database! report-jsons]]
             [echelon.text :refer [extract-names clean]]
-            [echelon.util :refer [group-by-features disjoint-lists]]
+            [echelon.util :refer [group-by-features disjoint-lists db-prn]]
             [taoensso.timbre :as timbre]))
 (timbre/refer-timbre)
 
 (def uri "datomic:free://localhost:4334/echelon")
-
-(defn how-many?
-  "How many beings are there?"
-  [dbc]
-  (let [f #(-> (d/q '[:find (count ?being)
-                      :in $ ?type
-                      :where
-                      [?r :record/type ?type]
-                      [?r :record/represents ?being]]
-                    dbc
-                    %)
-               ffirst)]
-    {:clients    (f :lobbying.record/client)
-     :registrant (f :lobbying.record/registrant)
-     :lobbyist   (f :lobbying.record/lobbyist)
-     :activity   (f :lobbying.record/activity)
-     :contact    (f :lobbying.record/contact)}))
 
 
 (defn merges-for-beings [dbc [b1 & b2s]]
@@ -70,18 +53,20 @@
 
 (defn same-client-registrant-merge-datoms [dbc]
   (info "Find datoms where forms indicate the client and registrant are the same")
-  (->> (d/q '[:find ?client-being ?registrant-being
-              :in $ %
-              :where
-              [?form       :lobbying.form/client-registrant-same true]
-              [?form       :lobbying.form/client ?client]
-              [?form       :lobbying.form/registrant ?registrant]
-              (represents ?client ?client-being)
-              (represents ?registrant ?registrant-being)]
-            dbc
-            rules)
-       disjoint-lists
-       (mapcat (partial merges-for-beings dbc))))
+  (->>  (report-jsons)
+        (filter (comp :client_self :client))
+        (map :document-id)
+        (d/q '[:find ?client-being ?registrant-being
+               :in $ % ?document-id
+               :where
+               [?form :lobbying.form/document-id ?document-id]
+               [?form :lobbying.form/client ?client]
+               [?form :lobbying.form/registrant ?registrant]
+               (represents ?client ?client-being)
+               (represents ?registrant ?registrant-being)]
+             dbc
+             rules)
+        (mapcat (partial merges-for-beings dbc))))
 
 (defn merges-based-on-exact-name! [dbc]
   (info "Merging based on exact names")
@@ -89,8 +74,6 @@
         (->> (beings-and-names dbc)
              (group-by (comp clean second))
              (partial grouped-matches->datoms dbc))]
-    (info "Trying to print how-many?")
-    (info (how-many? dbc))
     dbc))
 
 (defn merges-based-on-extracted-name [dbc]
@@ -106,12 +89,11 @@
              (mapcat (partial merges-for-beings dbc))
              (d/with dbc)
              :db-after)]
-    (info (how-many? dbc))
     dbc))
 
 (defn print-status []
   (let [c (d/connect uri)]
-    (info (how-many? (db c)))))
+    (db-prn "Printing db status" (db c))))
 
 (defn load-data []
   (d/delete-database uri)
@@ -122,32 +104,31 @@
     (info "Loaded!")
     (print-status)))
 
-(defn db-prn
-  [stage dbc]
-  (info stage)
-  (info (how-many? dbc)))
-
 (defn match-data []
   (info "Starting matching process")
-  (let [conn (d/connect uri)]
-    (->> (db conn)
-         (db-prn "Starting merge process")
-         same-client-registrant-merge-datoms
-         (partition-all 1000)
-         (map (partial d/transact conn))
-         doall)
-    (->> (db conn)
-         (db-prn "Merged based on same client and registrant")
-         (spy :info "Saving output")
-         (do #(d/q '[:find ?being ?name
-                     :in $ %
-                     :with ?record
-                     :where
-                     [?being  :record/type :being.record/being]
-                     [?record :record/represents ?being]
-                     (name-of ?record ?name)]
-                   %
-                   rules))
+  (let [conn (d/connect uri)
+        dbc (db conn)]
+    (doseq [result
+            (->> dbc
+                 (db-prn "Starting merge process")
+                 same-client-registrant-merge-datoms
+                 (partition-all 1000)
+                 (pmap (partial d/transact conn)))]
+      (try @result
+         (catch Exception e
+           (pprint result)
+           (throw e))))
+    (db-prn "Merged based on same client and registrant" dbc)
+    (info "Saving output")
+    (->> (d/q '[:find ?being ?name
+                :in $ %
+                :with ?record
+                :where
+                [?being  :record/type :being.record/being]
+                [?record :record/represents ?being]
+                (name-of ?record ?name)]
+              dbc
+              rules)
          distinct
          (group-by first)
          seq
@@ -168,16 +149,24 @@
 (comment
 
   (let [dbc (db (d/connect uri))]
-    (d/q '[:find ?client-being ?registrant-being
-              :in $ %
-              :where
-              [?form       :lobbying.form/client-registrant-same true]
-              [?form       :lobbying.form/client ?client]
-              [?form       :lobbying.form/registrant ?registrant]
-              (represents ?client ?client-being)
-              (represents ?registrant ?registrant-being)]
-            dbc
-            rules)
-    )
+    (->>  (report-jsons)
+          (filter (comp :client_self :client))
+          (map :document-id)
+          (d/q '[:find ?client-being ?registrant-being
+                 :in $ % [?document-id...]
+                 :where
+                 [?form :lobbying.form/document-id ?document-id]
+                 [?form :lobbying.form/client ?client]
+                 [?form :lobbying.form/registrant ?registrant]
+                 (represents ?client ?client-being)
+                 (represents ?registrant ?registrant-being)]
+               dbc
+               rules)
+          (take 10)))
 
+  (let [dbc (db (d/connect uri))]
+    (->>  (report-jsons)
+          (filter (comp :client_self :client))
+          count))
+(+ 1)
   )
