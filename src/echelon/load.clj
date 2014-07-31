@@ -515,9 +515,7 @@
          (catch Exception e
            (pprint result)
            (pprint e))))
-  (db-prn "Loaded" (db (d/connect conn)))
-
-  )
+  (db-prn "Loaded" (db conn)))
 
 (defn load-schema! [conn]
   @(d/transact conn schema))

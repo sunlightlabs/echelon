@@ -5,6 +5,8 @@
             [taoensso.timbre :as timbre]))
 (timbre/refer-timbre)
 
+(def uri "datomic:free://localhost:4334/echelon")
+
 (defn group-by-features
   "Like group-by, but inserts values multiple times based on f
   returning a vector of keys."
@@ -43,22 +45,26 @@
 (defn transpose [m]
   (apply mapv vector m))
 
+(defn ident-finder [dbc k]
+  (:db/ident (d/touch (d/entity dbc k))))
+
+
 (defn how-many?
   "How many beings are there?"
   [dbc]
-  (let [f #(-> (d/q '[:find (count ?being)
-                      :in $ ?type
-                      :where
-                      [?r :record/type ?type]
-                      [?r :record/represents ?being]]
-                    dbc
-                    %)
-               ffirst)]
-    {:clients    (f :lobbying.record/client)
-     :registrant (f :lobbying.record/registrant)
-     :lobbyist   (f :lobbying.record/lobbyist)
-     :activity   (f :lobbying.record/activity)
-     :contact    (f :lobbying.record/contact)}))
+  (->> (d/q '[:find ?being ?type
+              :where
+              [?being :record/type :being.record/being]
+              [?record :record/represents ?being]
+              [?record :record/type ?type]]
+            dbc)
+       (group-by first)
+       vals
+       (map #(map second %))
+       (map (comp sort distinct))
+       frequencies
+       (map (fn [[k v]] [(map (partial ident-finder dbc) k) v]))
+       (into {})))
 
 (defn db-prn
   [stage dbc]
