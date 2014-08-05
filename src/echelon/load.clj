@@ -62,7 +62,8 @@
                 :lobbying.lobbyist/suffix
                 (:lobbyist_suffix m)
                 :lobbying.lobbyist/covered-official-position
-                (:lobbyist_covered_position m)}]
+                (or (:lobbyist_covered_position m)
+                    (:lobbyist_covered_official_position m))}]
     (if (nil? (:lobbyist_is_new m))
       basic
       (assoc basic :lobbying.lobbyist/is-new (:lobbyist_is_new m)))))
@@ -503,7 +504,6 @@
          (catch Exception e
            (pprint result)
            (throw e))))
-
   (info "Loading reports")
   (doseq [result (->> (report-jsons)
                       (filter #(and (-> % second :client :client_name nil? not)
@@ -514,8 +514,7 @@
     (try @result
          (catch Exception e
            (pprint result)
-           (pprint e))))
-  (db-prn "Loaded" (db conn)))
+           (pprint e)))))
 
 (defn load-schema! [conn]
   @(d/transact conn schema))

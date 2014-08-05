@@ -1,36 +1,39 @@
 (ns echelon.core
   (:require [datomic.api :as d :refer [db q]]
             [clojure.pprint :refer [pprint]]
-            [echelon.load :refer [load-database! report-jsons]]
+            [echelon.load :refer [load-database! report-jsons registration-jsons]]
             [echelon.text :refer [extract-names clean]]
-            [echelon.util :refer [group-by-features disjoint-lists db-prn]]
+            [echelon.util :refer [group-by-features disjoint-lists db-prn uri]]
             [taoensso.timbre :as timbre]))
 (timbre/refer-timbre)
 
-(def uri "datomic:free://localhost:4334/echelon")
-
-
-(defn merges-for-beings [dbc [b1 & b2s]]
-  (let [records (map
-                 #(d/q '[:find ?record
-                         :in $ ?being
-                         :where [?record :record/represents ?being]]
-                       dbc
-                       %)
-                 b2s)
-        adds    (mapv #(vector :db/add (ffirst %) :record/represents b1)
-                      records)
-        retracts (map #(vector :db.fn/retractEntity %) b2s)
-        data (vec (concat adds retracts))]
-    data))
+(defn merges-for-beings [dbc [b1 & b2s :as beings]]
+  (if (= 1 (count (distinct beings)))
+    []
+    (let [records (map
+                   #(d/q '[:find ?record
+                           :in $ ?being
+                           :where [?record :record/represents ?being]]
+                         dbc
+                         %)
+                   b2s)
+          adds    (mapv #(vector :db/add (ffirst %) :record/represents b1)
+                        records)
+          retracts (map #(vector :db.fn/retractEntity %) b2s)
+          data (vec (concat adds retracts))]
+      data)))
 
 (def rules
-  '[[(name-of ?record ?name) [?record :lobbying.client/name ?name]]
-    [(name-of ?record ?name) [?record :lobbying.registrant/organization-name ?name]]
+  '[[(name-of ?record ?name)
+     [(ground [:lobbying.client/name
+               :lobbying.foreign-entity/name
+               :lobbying.registrant/name
+               :lobbying.affiliated-organization/name])
+      [?name-attr ...]]
+     [?record ?name-attr ?name]]
     [(either-form ?form) [?form :record/type :lobbying.record/registration]]
     [(either-form ?form) [?form :record/type :lobbying.record/report]]
-    [(represents ?record ?being) [?record :record/represents ?being]]
-    ])
+    [(represents ?record ?being) [?record :record/represents ?being]]])
 
 (defn beings-and-names [dbc]
   (d/q '[:find ?being ?name :in $ %
@@ -48,16 +51,18 @@
        (filter #(< 1 (count %)))
        (map (partial map first))
        disjoint-lists
-       (mapcat (partial merges-for-beings dbc))))
+       (mapcat (partial merges-for-beings dbc))
+       vec))
 
 
 (defn same-client-registrant-merge-datoms [dbc]
   (info "Find datoms where forms indicate the client and registrant are the same")
-  (->>  (report-jsons)
+  (->>  (concat (registration-jsons) (report-jsons))
+        (map second)
         (filter (comp :client_self :client))
-        (map :document-id)
+        (map :document_id)
         (d/q '[:find ?client-being ?registrant-being
-               :in $ % ?document-id
+               :in $ % [?document-id ...]
                :where
                [?form :lobbying.form/document-id ?document-id]
                [?form :lobbying.form/client ?client]
@@ -66,30 +71,20 @@
                (represents ?registrant ?registrant-being)]
              dbc
              rules)
-        (mapcat (partial merges-for-beings dbc))))
+        (mapcat (partial merges-for-beings dbc))
+        vec))
 
-(defn merges-based-on-exact-name! [dbc]
+(defn same-exact-name-merge-datoms [dbc]
   (info "Merging based on exact names")
-  (let [dbc
-        (->> (beings-and-names dbc)
-             (group-by (comp clean second))
-             (partial grouped-matches->datoms dbc))]
-    dbc))
+  (->> (beings-and-names dbc)
+       (group-by (comp clean second))
+       (grouped-matches->datoms dbc)))
 
-(defn merges-based-on-extracted-name [dbc]
+(defn same-extracted-name-merge-datoms [dbc]
   (info "Merging based on extracted names")
-  (let [dbc
-        (->> (beings-and-names dbc)
-             (group-by-features (comp extract-names second))
-             seq
-             (map second)
-             (filter #(< 1 (count %)))
-             (map (partial map first))
-             disjoint-lists
-             (mapcat (partial merges-for-beings dbc))
-             (d/with dbc)
-             :db-after)]
-    dbc))
+  (->> (beings-and-names dbc)
+       (group-by-features (comp extract-names second))
+       (grouped-matches->datoms dbc)))
 
 (defn print-status []
   (let [c (d/connect uri)]
@@ -104,21 +99,24 @@
     (info "Loaded!")
     (print-status)))
 
+(defn execute-merge-fn [conn dbc f]
+    (doseq [result (->> dbc f
+                        (partition-all 100)
+                        (pmap (partial d/transact conn)))]
+      (try @result
+           (catch Exception e
+             (throw e)))))
+
 (defn match-data []
   (info "Starting matching process")
+  (print-status)
   (let [conn (d/connect uri)
         dbc (db conn)]
-    (doseq [result
-            (->> dbc
-                 (db-prn "Starting merge process")
-                 same-client-registrant-merge-datoms
-                 (partition-all 1000)
-                 (pmap (partial d/transact conn)))]
-      (try @result
-         (catch Exception e
-           (pprint result)
-           (throw e))))
-    (db-prn "Merged based on same client and registrant" dbc)
+    (execute-merge-fn conn dbc same-client-registrant-merge-datoms)
+    (execute-merge-fn conn dbc same-exact-name-merge-datoms)
+    (execute-merge-fn conn dbc same-extracted-name-merge-datoms)
+
+    (print-status)
     (info "Saving output")
     (->> (d/q '[:find ?being ?name
                 :in $ %
@@ -127,7 +125,7 @@
                 [?being  :record/type :being.record/being]
                 [?record :record/represents ?being]
                 (name-of ?record ?name)]
-              dbc
+              (db conn)
               rules)
          distinct
          (group-by first)
@@ -145,28 +143,3 @@
     "match"  (match-data)
     "status" (print-status))
     (java.lang.System/exit 0))
-
-(comment
-
-  (let [dbc (db (d/connect uri))]
-    (->>  (report-jsons)
-          (filter (comp :client_self :client))
-          (map :document-id)
-          (d/q '[:find ?client-being ?registrant-being
-                 :in $ % [?document-id...]
-                 :where
-                 [?form :lobbying.form/document-id ?document-id]
-                 [?form :lobbying.form/client ?client]
-                 [?form :lobbying.form/registrant ?registrant]
-                 (represents ?client ?client-being)
-                 (represents ?registrant ?registrant-being)]
-               dbc
-               rules)
-          (take 10)))
-
-  (let [dbc (db (d/connect uri))]
-    (->>  (report-jsons)
-          (filter (comp :client_self :client))
-          count))
-(+ 1)
-  )

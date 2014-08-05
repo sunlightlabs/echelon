@@ -48,6 +48,9 @@
 (defn ident-finder [dbc k]
   (:db/ident (d/touch (d/entity dbc k))))
 
+(defn finder [k]
+  (d/touch (d/entity (db (d/connect uri)) k)))
+
 
 (defn how-many?
   "How many beings are there?"
