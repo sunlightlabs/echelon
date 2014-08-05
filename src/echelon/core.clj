@@ -57,34 +57,43 @@
 
 (defn same-client-registrant-merge-datoms [dbc]
   (info "Find datoms where forms indicate the client and registrant are the same")
-  (->>  (concat (registration-jsons) (report-jsons))
-        (map second)
-        (filter (comp :client_self :client))
-        (map :document_id)
-        (d/q '[:find ?client-being ?registrant-being
-               :in $ % [?document-id ...]
-               :where
-               [?form :lobbying.form/document-id ?document-id]
-               [?form :lobbying.form/client ?client]
-               [?form :lobbying.form/registrant ?registrant]
-               (represents ?client ?client-being)
-               (represents ?registrant ?registrant-being)]
-             dbc
-             rules)
-        (mapcat (partial merges-for-beings dbc))
-        vec))
+  (let [datoms
+        (->>  (concat (registration-jsons) (report-jsons))
+              (map second)
+              (filter (comp :client_self :client))
+              (map :document_id)
+              (d/q '[:find ?client-being ?registrant-being
+                     :in $ % [?document-id ...]
+                     :where
+                     [?form :lobbying.form/document-id ?document-id]
+                     [?form :lobbying.form/client ?client]
+                     [?form :lobbying.form/registrant ?registrant]
+                     (represents ?client ?client-being)
+                     (represents ?registrant ?registrant-being)]
+                   dbc
+                   rules)
+              (mapcat (partial merges-for-beings dbc))
+              vec)]
+    (info "Datoms produced for sames merges")
+    datoms))
 
 (defn same-exact-name-merge-datoms [dbc]
   (info "Merging based on exact names")
-  (->> (beings-and-names dbc)
-       (group-by (comp clean second))
-       (grouped-matches->datoms dbc)))
+  (let [datoms
+        (->> (beings-and-names dbc)
+             (group-by (comp clean second))
+             (grouped-matches->datoms dbc))]
+    (info "Datoms produced for exact name merges")
+    datoms))
 
 (defn same-extracted-name-merge-datoms [dbc]
   (info "Merging based on extracted names")
-  (->> (beings-and-names dbc)
-       (group-by-features (comp extract-names second))
-       (grouped-matches->datoms dbc)))
+  (let [datoms
+        (->> (beings-and-names dbc)
+             (group-by-features (comp extract-names second))
+             (grouped-matches->datoms dbc))]
+    (info "Datoms produced for extracted names")
+    datoms))
 
 (defn print-status []
   (let [c (d/connect uri)]
@@ -101,7 +110,7 @@
 
 (defn execute-merge-fn [conn dbc f]
     (doseq [result (->> dbc f
-                        (partition-all 100)
+                        (partition-all 10)
                         (pmap (partial d/transact conn)))]
       (try @result
            (catch Exception e
@@ -109,14 +118,16 @@
 
 (defn match-data []
   (info "Starting matching process")
-  (print-status)
   (let [conn (d/connect uri)
         dbc (db conn)]
-    (execute-merge-fn conn dbc same-client-registrant-merge-datoms)
-    (execute-merge-fn conn dbc same-exact-name-merge-datoms)
-    (execute-merge-fn conn dbc same-extracted-name-merge-datoms)
-
     (print-status)
+    (execute-merge-fn conn dbc same-client-registrant-merge-datoms)
+    (print-status)
+    (execute-merge-fn conn dbc same-exact-name-merge-datoms)
+    (print-status)
+    (execute-merge-fn conn dbc same-extracted-name-merge-datoms)
+    (print-status)
+
     (info "Saving output")
     (->> (d/q '[:find ?being ?name
                 :in $ %

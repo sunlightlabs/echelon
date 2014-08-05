@@ -52,7 +52,7 @@
   (d/touch (d/entity (db (d/connect uri)) k)))
 
 
-(defn how-many?
+(defn how-many-complicated?
   "How many beings are there?"
   [dbc]
   (->> (d/q '[:find ?being ?type
@@ -68,6 +68,17 @@
        frequencies
        (map (fn [[k v]] [(map (partial ident-finder dbc) k) v]))
        (into {})))
+
+(defn how-many?
+  "How many beings are there?"
+  [dbc]
+  (->> (how-many-complicated? dbc)
+       (group-by-features first)
+       (map (fn [[k v]]
+              [k (reduce + (map second v))]))
+       (into {})))
+
+
 
 (defn db-prn
   [stage dbc]

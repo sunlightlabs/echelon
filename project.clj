@@ -13,5 +13,5 @@
                  [environ "0.5.0"]
                  [com.taoensso/timbre "3.2.1"]]
   :plugins [[lein-environ "0.5.0"]]
-  :jvm-opts ["-Xmx7g","-Xms6g","-server"]
+  :jvm-opts ["-Xmx36g","-Xms5g","-server"]
   :main echelon.core)
