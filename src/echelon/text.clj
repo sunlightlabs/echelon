@@ -1,6 +1,8 @@
 (ns echelon.text
   (:require [instaparse.core :as insta]
-            [clojure.string :as s]))
+            [clojure.string :as s]
+            [taoensso.timbre :as timbre]))
+(timbre/refer-timbre)
 
 (def single-parse
   (insta/parser (slurp "src/echelon/parser.bnf")))
@@ -14,6 +16,20 @@
     :names vector}
    t))
 
-(defn clean [x] (-> x s/lower-case (s/replace "." "") s/trim))
+(defn clean [x] (-> x s/lower-case
+                    (s/replace "." "")
+                    (s/replace "  " " ")
+                    s/trim))
 
-(defn extract-names [x] (-> x clean all-parses transform vec))
+(defn extract-names [x]
+  (let [val (deref (future (all-parses (clean x))) 1000 :timeout)]
+    (condp = val
+      :timeout
+      (do
+        (println (str "Cannot extract name quickly: \"" x"\""))
+        [])
+      []
+      (do
+        (println (str "Cannot extract any name: \"" x"\""))
+        [])
+      (-> val transform vec))))
