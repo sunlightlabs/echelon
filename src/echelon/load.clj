@@ -496,25 +496,34 @@
 
 (defn load-data! [conn]
   (info "Loading registrations")
-  (doseq [result (->> (registration-jsons)
-                      (map (partial apply registration-datoms))
-                      (filter (complement contains-nil?))
-                      (pmap (partial d/transact-async conn)))]
-    (try @result
-         (catch Exception e
-           (pprint result)
-           (throw e))))
+  (let [c (count (registration-jsons))
+        i (atom 0)]
+    (doseq [result (->> (registration-jsons)
+                        (map (partial apply registration-datoms))
+                        (filter (complement contains-nil?))
+                        (pmap (partial d/transact-async conn)))]
+      (when (= 0 (mod (swap! i inc) 1000))
+        (info (str (/ @i c) " registrations loaded")))
+      (try @result
+           (catch Exception e
+             (pprint result)
+             (throw e)))))
+
   (info "Loading reports")
-  (doseq [result (->> (report-jsons)
-                      (filter #(and (-> % second :client :client_name nil? not)
-                                    (-> % second :report_quarter nil? not)))
-                      (map (partial apply report-datoms))
-                      (filter (complement contains-nil?))
-                      (pmap (partial d/transact-async conn)))]
-    (try @result
-         (catch Exception e
-           (pprint result)
-           (pprint e)))))
+  (let [c (count (report-jsons))
+        i (atom 0)]
+    (doseq [result (->> (report-jsons)
+                        (filter #(and (-> % second :client :client_name nil? not)
+                                      (-> % second :report_quarter nil? not)))
+                        (map (partial apply report-datoms))
+                        (filter (complement contains-nil?))
+                        (pmap (partial d/transact-async conn)))]
+      (when (= 0 (mod (swap! i inc) 1000))
+        (info (str (/ @i c) " reports loaded")))
+      (try @result
+           (catch Exception e
+             (pprint result)
+             (throw e))))))
 
 (defn load-schema! [conn]
   @(d/transact conn schema))
