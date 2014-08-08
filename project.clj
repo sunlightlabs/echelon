@@ -13,5 +13,10 @@
                  [environ "0.5.0"]
                  [com.taoensso/timbre "3.2.1"]]
   :plugins [[lein-environ "0.5.0"]]
-  :jvm-opts ["-Xmx36g","-Xms5g","-server"]
+  :profiles {:dev
+             [:user {:jvm-opts ["-Xmx4g" "-Xms1g"]}]
+             :prod
+             [:user {:jvm-opts ["-Xmx20g" "-Xms5g" "-server"
+                                "-agentpath:/home/zmaril/software/yjp-2013-build-13088/bin/linux-x86-64/libyjpagent.so"]}]}
+
   :main echelon.core)
