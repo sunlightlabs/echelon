@@ -1,7 +1,7 @@
 names = name (<whitespace>+ <splitters> <whitespace>+ name)*
 name = token (<whitespace>* | <whitespace>+ <corporates> | <whitespace>+ token)*
-<token> = !(corporates | splitters) #'[a-z0-9]+'
-whitespace = ' ' | ',' | '-' | '(' | ')'
+<token> = !(corporates whitespace | splitters) #'[a-z0-9&!\'/]+'
+whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$'
 corporates = "llc" | "llp" | "inc" | "lc" | "pllc" | "ltd" | "lp" | "pllp" | "company" | "corps" | "corporations" | "corporation" | "corp" | "companies" | "incorporated" | "corporation"
 splitters = fka | full
 fka = "fka" | !"//" "f//k//a" | "f//k//a//" 
