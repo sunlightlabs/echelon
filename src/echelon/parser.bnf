@@ -1,11 +1,25 @@
-names = name (<whitespace>+ <splitters> <whitespace>+ name)*
-name = token (<whitespace>* | <whitespace>+ <corporates> | <whitespace>+ token)*
-<token> = !(corporates whitespace | splitters) #'[a-z0-9&!\'/]+'
+beings = name (<whitespace>+ splitters <whitespace>+ name)*
+name = token (<whitespace>* | <whitespace>+ corporates | <whitespace>+ token | tld)*
+<token> = !(corporates | splitters) #'[a-z0-9&!\'/]+' | usa | saint
 whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$'
-corporates = "llc" | "llp" | "inc" | "lc" | "pllc" | "ltd" | "lp" | "pllp" | "company" | "corps" | "corporations" | "corporation" | "corp" | "companies" | "incorporated" | "corporation"
-splitters = fka | full
-fka = "fka" | !"//" "f//k//a" | "f//k//a//" 
-full = "formerly known as" | !" known" "formely"
+
+tld = <"."> ("com" | "org")
+saint = "st."
+usa = "u.s." | "u.s.a"
+corporates = llc | pllc | llp | lp | incorporated | corporation | limited | company
+llc  = "llc" | "lc"
+pllc = "pllc"
+llp  = "llp"
+lp =  "lp"
+incorporated  = "incorporated" | "inc" | "inc."
+corporation = "corps" | "corporations" | "corporation" | !"corpo" "corp" | "corp." | "incorporated"
+limited = "ltd"
+company = "company" | "companies"
+
+
+splitters = formerly 
+formerly = "formerly"
+
 
 (*splitters =  "formerly known as" | !" known" "formerly"*)
              (*"formerly know as" | "frmly filed as" | "frmly registered

@@ -12,17 +12,21 @@
 
 (defn transform [t]
   (insta/transform
-   {:name (fn [& ts] (s/join " " ts))
-    :names vector}
+   {:corporates first
+    :splitters  first
+    :usa        (constantly :usa)
+    :saint      (constantly :saint)
+    :other  vector
+    :beings vector
+    :name   vector}
    t))
 
 (defn clean [x] (-> x s/lower-case
-                    (s/replace "." "")
                     (s/replace "  " " ")
                     s/trim))
 
 (defn extract-names [x]
-  (let [val (deref (future (all-parses (clean x))) 1000 :timeout)]
+  (let [val (deref (future (all-parses (clean x))) 100 :timeout)]
     (condp = val
       :timeout
       (do
@@ -32,4 +36,13 @@
       (do
         (println (str "Cannot extract any name: \"" x"\""))
         [])
-      (-> val transform vec))))
+      (do
+        (when (not= 1 (count val))
+          (println (str "Cannot unambiguously parse: \"" x "\"")))
+        (-> val first transform vec)))))
+
+(def s (clean "U.S. SECURITIES MARKETS COALITION"
+))
+(single-parse s)
+(all-parses s)
+(extract-names s)
