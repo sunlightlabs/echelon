@@ -116,17 +116,22 @@
            (catch Exception e
              (throw e)))))
 
-(defn match-data []
+(def match-functions
+  {"same-on-form" same-client-registrant-merge-datoms
+   "exact-name"   same-exact-name-merge-datoms
+   "extracted-name" same-extracted-name-merge-datoms})
+
+(defn match-data [args]
   (info "Starting matching process")
   (let [conn (d/connect uri)
         dbc (db conn)]
     (print-status)
-    (execute-merge-fn conn dbc same-client-registrant-merge-datoms)
-    (print-status)
-    (execute-merge-fn conn dbc same-exact-name-merge-datoms)
-    (print-status)
-    (execute-merge-fn conn dbc same-extracted-name-merge-datoms)
-    (print-status)
+    (doseq [kf
+            (if (= (first args) "all")
+              ["same-on-form" "exact-name" "extracted-name"]
+              args)]
+      (execute-merge-fn conn dbc (match-functions kf))
+      (print-status))
 
     (info "Saving output")
     (->> (d/q '[:find ?being ?name
@@ -147,10 +152,10 @@
          with-out-str
          (spit "output/names-output.clj"))))
 
-(defn -main [arg]
-  (info (str "Running " arg " command"))
-  (condp = arg
+(defn -main [& args]
+  (info (str "Running " (first args) " command"))
+  (condp = (first args)
     "load"   (load-data)
-    "match"  (match-data)
+    "match"  (match-data (rest args))
     "status" (print-status))
-    (java.lang.System/exit 0))
+  (java.lang.System/exit 0))
