@@ -19,7 +19,7 @@
     :name   vector
     :initial str
     :initials str}
-   (->> [:usa :saint :north-america :numero]
+   (->> [:usa :saint :north-america :numero :and]
         (map (juxt identity constantly ))
         (into {}))))
 
@@ -41,11 +41,13 @@
         (println (str "Cannot extract any name: \"" x"\""))
         [])
       (do
-        (when (not= 1 (count val))
-          (println (str "Cannot unambiguously parse: \"" x "\"")))
-        (-> val first transform vec)))))
+        (comment
+          (when (not= 1 (count val))
+            (println (str "Cannot unambiguously parse: \"" x "\""))))
+        (-> val last transform vec)))))
 
-(def s (clean "Abengoa Bioenergy Corp"))
+(def s (clean "U.S.A.A."))
 (single-parse s)
 (all-parses s :unhide :all)
+
 (extract-names s)

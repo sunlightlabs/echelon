@@ -7,7 +7,7 @@
     (are [x y ] (= (extract-names x) y)
          "Altria Client Services Inc. (formerly Altria Corporate Services, Inc.)"
          [["altria" "client" "services" :incorporated]
-          :formerly
+          :fka
           ["altria" "corporate" "services" :incorporated]]
 
          "ST. XAVIER UNIVERSITY"
@@ -18,8 +18,8 @@
 
          "American Coatings Association (f.k.a. National Paint and Coatings Association)"
          [["american" "coatings" :association]
-          :formerly
-          ["national" "paint" "and" "coatings" :association]]
+          :fka
+          ["national" "paint" :and "coatings" :association]]
 
          ;; "The Livingston Group (for Huntington Ingalls Incorporated)"
          ;; [["the"
@@ -40,7 +40,7 @@
 
          "Real Estate Investment Securities Assn. (Formelry TENANT-IN-COMMON ASSOCIATION)"
          [["real" "estate" "investment" "securities" :association]
-          :formerly
+          :fka
           ["tenant" "in" "common" :association]]
 
          "ASSOCIATION OF NATIONAL ESTUARY PROGRAMS"
@@ -53,23 +53,39 @@
           :aka
           ["tulsa" "public" "schoo"]]
 
-         "Eagle 1 Resources, LCC"     ;take care of common mispellings
+         "Eagle 1 Resources, LCC"    ;take care of common misspellings
          [["eagle" "1" "resources" :llc]]
 
          "Altria Client Services Inc. (\"formarly Altria Corporate Services, Inc\")"
          [["altria" "client" "services" :incorporated]
-          :formerly
+          :fka
           ["altria" "corporate" "services" :incorporated]]
 
-         ;Unsure about whether North American should be included in the north america tag
+         ;;Unsure about whether North American should be included in the north america tag
          "SAWRUK MANAGEMENT-WYANDOTTE NATION (formerly North American Sports Management)"
          [["sawruk" "management" "wyandotte" "nation"]
-          :formerly
+          :fka
           [:north-america "sports" "management"]]
 
          ;;Unsure if this is a good structure for domains
          "PARENTALRIGHTS.ORG"
          [[[:domain "parentalrights" "org"]]]
+
+         ;;Unsure if / as whitespace is the right choice
+         "GenCorp Inc./Aerojet Rocketdyne Inc. (fka Aerojet General Corporation)"
+         [["gencorp" :incorporated "aerojet" "rocketdyne" :incorporated]
+          :fka
+          ["aerojet" "general" :corporation]]
+
+         "Abengoa Bioenergy Corp"
+         [["abengoa" "bioenergy" :corporation]]
+
+         "Rape, Abuse & Incest National Network"
+         [["rape" "abuse" :and "incest" "national" "network"]]
+
+         ;;To make sure that the usa tag in the bnf doesn't eat the u.s.a.
+         "U.S.A.A."
+         [["u.s.a.a."]]
          )))
 
 (run-tests)

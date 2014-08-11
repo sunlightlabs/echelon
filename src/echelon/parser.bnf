@@ -1,41 +1,45 @@
-beings = name (<whitespace>+ splitters <whitespace>+ name)*
-name = token  (<whitespace>* | <whitespace>+ token)*
-
-whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$' | '\"'
+beings = whitespace? name  (<whitespace>+ splitters <whitespace>+ name)* <whitespace>*
+name   = token (<whitespace>+ token)*
 
 <token>   = simple | special
 
-<simple>  = !(splitters | special) #'[a-z0-9&!\'/]+'
+(*TODO: why does formers have to included here? It feels odd, perhaps the two negative lookups in simple and then splitters cancel out and formers get lost somehow*) 
+<simple>  = !(special | splitters | formers) #"[a-z0-9&!'/]+" ["."]
 
-<special> = corporates | north-america | usa | saint | initials | numero | domain
-initials = !(usa | north-america | splitters) initial+
-initial = #"[a-z]" "."
-numero = "no."
-domain = #'[a-z0-9]+' <"."> ("com" | "org")
-north-america = "north america" | "n.a." | "north american"
-saint = "st."
-usa = "u.s." | "u.s.a"
+<special> = and | corporates | domain | initials | north-america | numero | saint | usa
+
+and = "&" | &("and" whitespace) "and" 
 
 corporates = llc | pllc | llp | lp | incorporated | corporation | limited | company | international | association
-association = "association" | "assn."               
+association = "association" | "assn." | "associations" | "association's"
 international = "international"
-llc  = "llc" | "lc" | "lcc"
+llc  = "llc" | "lc" | "lcc" | "llc."
 pllc = "pllc"
 llp  = "llp"
-lp =  "lp" | "lp."
-incorporated  = "incorporated" | "inc" | "inc."
-corporation = "corps" | "corporations" | "corporation" | !"corpo" "corp" | "corp."
+lp =  "lp" | "lp." | "l.p."
+incorporated  = "incorporated" | &("inc" whitespace) "inc" | "inc."
+corporation = "corps" | "corporations" | "corporation" | &("corp" whitespace) "corp" | "corp."
 limited = "ltd" | "ltd."
 company = "company" | "companies" | "co."
 
+initials = !(usa | north-america | splitters | corporates) initial+ [#"[a-z]"]
+initial = #"[a-z]" "."
+domain = #'[a-z0-9]+' <"."> ("com" | "org")
+north-america = "north america" | "n.a." | "north american"
+numero = "no."
+saint = "st."
+usa = &("u.s." whitespace) "u.s." | &("u.s.a" whitespace) "u.s.a" | &("u.s.a." whitespace) "u.s.a."
 
-splitters = formerly  | aka
-formerly = "formerly" | "f.k.a." | "formelry" | "formarly"
-aka = "a/k/a"
 
-(*splitters =  "formerly known as" | !" known" "formerly"*)
-             (*"formerly know as" | "frmly filed as" | "frmly registered
-             as" | "frmly" | "frly" | "frmly field" | "formerly filed as" |
-             "formerly reported as" | "formerly" | "formally known as" |
-             "also known as" | "formally" | "former" | "d|b|a" | "dba" | *)
-             
+splitters = fka  | aka
+fka = "fka" | "f.k.a." | simple-fka  | complex-fka
+<simple-fka>  = !complex-fka formers
+<complex-fka> = formers <whitespace> fka-verbs <whitespace> "as"
+<formers> = "formerly" | "formelry" | "formarly" | "frmly" | "frly"
+<fka-verbs> = "registered" | "filed" | "reported" | "known" | "know" | "field"
+
+"formerly registered as"
+
+aka = "a/k/a" | "a.k.a." | "also known as"
+
+whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$' | '\"' | '/'
