@@ -1,25 +1,37 @@
 beings = name (<whitespace>+ splitters <whitespace>+ name)*
-name = token (<whitespace>* | <whitespace>+ corporates | <whitespace>+ token | tld)*
-<token> = !(corporates | splitters) #'[a-z0-9&!\'/]+' | usa | saint
-whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$'
+name = token  (<whitespace>* | <whitespace>+ token)*
 
-tld = <"."> ("com" | "org")
+whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$' | '\"'
+
+<token>   = simple | special
+
+<simple>  = !(splitters | special) #'[a-z0-9&!\'/]+'
+
+<special> = corporates | north-america | usa | saint | initials | numero | domain
+initials = !(usa | north-america | splitters) initial+
+initial = #"[a-z]" "."
+numero = "no."
+domain = #'[a-z0-9]+' <"."> ("com" | "org")
+north-america = "north america" | "n.a." | "north american"
 saint = "st."
 usa = "u.s." | "u.s.a"
-corporates = llc | pllc | llp | lp | incorporated | corporation | limited | company
-llc  = "llc" | "lc"
+
+corporates = llc | pllc | llp | lp | incorporated | corporation | limited | company | international | association
+association = "association" | "assn."               
+international = "international"
+llc  = "llc" | "lc" | "lcc"
 pllc = "pllc"
 llp  = "llp"
-lp =  "lp"
+lp =  "lp" | "lp."
 incorporated  = "incorporated" | "inc" | "inc."
-corporation = "corps" | "corporations" | "corporation" | !"corpo" "corp" | "corp." | "incorporated"
-limited = "ltd"
-company = "company" | "companies"
+corporation = "corps" | "corporations" | "corporation" | !"corpo" "corp" | "corp."
+limited = "ltd" | "ltd."
+company = "company" | "companies" | "co."
 
 
-splitters = formerly 
-formerly = "formerly"
-
+splitters = formerly  | aka
+formerly = "formerly" | "f.k.a." | "formelry" | "formarly"
+aka = "a/k/a"
 
 (*splitters =  "formerly known as" | !" known" "formerly"*)
              (*"formerly know as" | "frmly filed as" | "frmly registered

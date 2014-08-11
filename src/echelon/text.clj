@@ -10,16 +10,20 @@
 (def all-parses
   (partial insta/parses single-parse))
 
-(defn transform [t]
-  (insta/transform
+(def transform-mapping
+  (merge
    {:corporates first
     :splitters  first
-    :usa        (constantly :usa)
-    :saint      (constantly :saint)
     :other  vector
     :beings vector
-    :name   vector}
-   t))
+    :name   vector
+    :initial str
+    :initials str}
+   (->> [:usa :saint :north-america :numero]
+        (map (juxt identity constantly ))
+        (into {}))))
+
+(def transform (partial insta/transform transform-mapping))
 
 (defn clean [x] (-> x s/lower-case
                     (s/replace "  " " ")
@@ -41,8 +45,7 @@
           (println (str "Cannot unambiguously parse: \"" x "\"")))
         (-> val first transform vec)))))
 
-(def s (clean "U.S. SECURITIES MARKETS COALITION"
-))
+(def s (clean "Abengoa Bioenergy Corp"))
 (single-parse s)
-(all-parses s)
+(all-parses s :unhide :all)
 (extract-names s)
