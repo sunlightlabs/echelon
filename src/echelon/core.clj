@@ -109,12 +109,12 @@
     (print-status)))
 
 (defn execute-merge-fn [conn dbc f]
-    (doseq [result (->> dbc f
-                        (partition-all 10)
-                        (pmap (partial d/transact conn)))]
-      (try @result
-           (catch Exception e
-             (throw e)))))
+  (doseq [result (->> dbc f
+                      (partition-all 1)
+                      (pmap (partial d/transact conn)))]
+    (try @result
+         (catch Exception e
+           (throw e)))))
 
 (def match-functions
   {"same-on-form" same-client-registrant-merge-datoms

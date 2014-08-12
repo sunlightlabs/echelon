@@ -5,26 +5,27 @@ name   = token (<whitespace>+ token)* ["."*]
 <token>   = simple | special
 
 (*TODO: why does formers have to included here? It feels odd, perhaps the two negative lookups in simple and then splitters cancel out and formers get lost somehow*) 
-<simple>  = !(special | splitters | formers) #"[a-z0-9&!'/]+" ["."]
+<simple>  = !(special | splitters | formers | initials) #"[a-z0-9&!'/]+" ["."]
 
-<special> = and | corporates | domain | initials | north-america | number | saint | usa
+<special> = &(special-helper whitespace) special-helper
+<special-helper> = and | corporates | domain | initials | north-america | number | saint | usa
 
-and = "&" | &("and" whitespace) "and" 
+and = "&" | "and" 
 
 corporates = llc | pllc | llp | lp | incorporated | corporation | limited | company | international | association | foreign 
 association = "association" | "assn." | "associations" | "association's" | "associations'"
-international = &("international" whitespace) "international"
+international = "international"
 llc  = "llc" | "lc" | "lcc" | "llc."
 pllc = "pllc"
 llp  = "llp" | "llp."
-lp =  &("lp" whitespace) "lp" | "lp." | &("l.p." whitespace) "l.p."
-incorporated  = "incorporated" | &("inc" whitespace) "inc" | "inc."
-corporation = "corps" | "corporations" | "corporation" | &("corp" whitespace) "corp" | "corp."
-limited = "ltd" | &("ltd." whitespace) "ltd." | "ltd.."
+lp =   "lp" | "lp." | "l.p."
+incorporated  = "incorporated" | "inc" | "inc."
+corporation = "corps" | "corporations" | "corporation" | "corp" | "corp."
+limited = "ltd" | "ltd." | "ltd.."
 company = "company" | "companies" | "co."
 foreign = "ltda." 
 
-initials = !(usa | north-america | splitters | corporates) initial+ [#"[a-z]"]
+initials = !(usa | north-america | splitters | corporates) initial+ 
 initial = #"[a-z]" "."
 domain = #'[a-z0-9]+' <"."> ("com" | "org" | "us" | "net")
 north-america = "north america" | "n.a." | "north american"
@@ -47,4 +48,4 @@ fka = "fka" | "f.k.a." | "f/k/a/" |  simple-fka  | complex-fka
 
 aka = "a/k/a" | "a.k.a." | "also known as"
 
-whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$' | '\"' | '/' | '*' | '=' | '>' | '+' | '[' | ']' | '_'
+whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$' | '\"' | '/' | '*' | '=' | '>' | '+' | '[' | ']' | '_' | '$'
