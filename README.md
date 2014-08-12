@@ -123,9 +123,9 @@ Each vector represents a being within the database. The first element
 of a vector is the entity id from datomic for the being. The second
 element of the vector is a list of strings which correspond to the
 various names that representations associated with the being
-possess. As we can see above, "AETNA INC." "AETNA", "Aetna INC." and
-"Aetna,Inc." are all associated with the same being, while "AETNA INC.
-(Formerly, AETNA LIFE & CASUALTY)" has it's own being.
+possess. As we can see above, `"AETNA INC."`, `"AETNA"`, `"Aetna INC."` and
+`"Aetna,Inc."` are all associated with the same being, while `"AETNA INC.
+(Formerly, AETNA LIFE & CASUALTY)"` has it's own being.
 
 There are currently three resolution steps. The first and simplest
 relies on a checkbox on the lobbying forms which indicates that the
