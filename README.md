@@ -86,38 +86,38 @@ JVM is 20gb. During the loading, this can probably safely turned down to under 1
    $ DATA_LOCATION=~/data/sopr_html lein with-profile +user,+prod run load
    ```
 
-6. There are several methods used to resolve entities. Currently the
-   most effective means we have of evaluating the resolution steps is
-   to look at the names of the matched entities. Thus, all of the
-   following commands will create the file
-   `output/names-output.clj`. This file will have a list of vectors
-   that have a structure similar to the following:
+Finally, there are several methods used to resolve entities. Currently
+the most effective means we have of evaluating the resolution steps is
+to look at the names of the matched entities. Thus, all of the
+following commands will create the file
+`output/names-output.clj`. This file will have a list of vectors that
+have a structure similar to the following:
 
-   ``` clj
-   [17592186297621
-   ("AEROSPACE MISSIONS CORPORATION" "Aerospace Missions Corporation")]
-   [17592190608335 ("AES Corporation" "AES Corp")]
-   [17592191194294 ("AES Sparrows Point LNG, LLC")]
-   [17592195354891 ("AES Wind Generation" "AES Wind Generation, Inc.")]
-   [17592191304138 ("AESTI")]
-   [17592195340675 ("AETNA INC." "AETNA" "Aetna Inc." "Aetna, Inc.")]
-   [17592195436234 ("AETNA INC.  (Formerly, AETNA LIFE & CASUALTY)")]
-   [17592188160497 ("AETREX WORLDWIDE, INC.")]
-   [17592189483957
-   ("AFC FIRST FINANCIAL CORPORATION d/b/a GREAT BEAR FINANCIAL")]
-   [17592188989049
-   ("AFFILIATED COMPUTER SERVICES, INC.-STATE AND LOCAL SOLUTIONS")]
-   [17592199962992
-   ("AFFILIATED MANAGERS GROUP, Inc."
-   "Affiliated Managers Group, Inc.")]
-   [17592197543002
-   ("AFFORD (formerly Climate Policy Group)"
-   "AFFORD, Formerly Climate Policy Group")]
-   [17592199047305 ("AFFORD Group (formerly Climate Policy Group)")]
-   [17592190928110
-   ("AFFORDABLE HOUSING TAX CREDIT COALITION"
-   "Affordable Housing Tax Credit Coalition")]
-   ```
+``` clj
+[17592186297621
+("AEROSPACE MISSIONS CORPORATION" "Aerospace Missions Corporation")]
+[17592190608335 ("AES Corporation" "AES Corp")]
+[17592191194294 ("AES Sparrows Point LNG, LLC")]
+[17592195354891 ("AES Wind Generation" "AES Wind Generation, Inc.")]
+[17592191304138 ("AESTI")]
+[17592195340675 ("AETNA INC." "AETNA" "Aetna Inc." "Aetna, Inc.")]
+[17592195436234 ("AETNA INC.  (Formerly, AETNA LIFE & CASUALTY)")]
+[17592188160497 ("AETREX WORLDWIDE, INC.")]
+[17592189483957
+("AFC FIRST FINANCIAL CORPORATION d/b/a GREAT BEAR FINANCIAL")]
+[17592188989049
+("AFFILIATED COMPUTER SERVICES, INC.-STATE AND LOCAL SOLUTIONS")]
+[17592199962992
+("AFFILIATED MANAGERS GROUP, Inc."
+"Affiliated Managers Group, Inc.")]
+[17592197543002
+("AFFORD (formerly Climate Policy Group)"
+"AFFORD, Formerly Climate Policy Group")]
+[17592199047305 ("AFFORD Group (formerly Climate Policy Group)")]
+[17592190928110
+("AFFORDABLE HOUSING TAX CREDIT COALITION"
+"Affordable Housing Tax Credit Coalition")]
+```
 
 Each vector represents a being within the database. The first element
 of a vector is the entity id from datomic for the being. The second
@@ -131,9 +131,9 @@ There are currently three resolution steps. The first and simplest
 relies on a checkbox on the lobbying forms which indicates that the
 registrant being is the same as the client being.
 
-   ``` sh
-   $ lein with-profile +user,+prod run match same-on-form
-   ```
+``` sh
+$ lein with-profile +user,+prod run match same-on-form
+```
 
 The next step, in terms of increasing complexity, matches some beings
 based on name. In particular, if a representation of a client, foreign
@@ -141,9 +141,9 @@ entity, registrant or affiliated organization have the same exact
 name, then the beings they represent are merged together. Note that we
 do not match people solely based on exact name matches.
 
-   ``` sh
-   $ lein with-profile +user,+prod run match exact-name
-   ```
+``` sh
+$ lein with-profile +user,+prod run match exact-name
+```
 
 The third and final step used is the main focus right now in terms of
 effort. ECHELON uses
@@ -153,19 +153,19 @@ to parse the same names that were previously matched on into data
 structures. The data structures results are then used to match
 representations together and indicate which beings should be merged.
 
-   ``` clj
-   (require '[echeon.text :refer [extract-names]])
-   (extract-names "Independent School District No. 1 of Tulsa County, Oklahoma a/k/a Tulsa Public School")
-   ;;[["independent" "school" "district" [:number "1"] "of" "tulsa" "county" "oklahoma"]
-   ;; :aka
-   ;; ["tulsa" "public" "school"]]
-   (extract-names "Terminix, International Co. Lp.")
-   ;;[["terminix" :international :company :lp]]
-   (extract-names "GenCorp Inc./Aerojet Rocketdyne Inc. (fka Aerojet General Corporation)")
-   ;;[["gencorp" :incorporated "aerojet" "rocketdyne" :incorporated]
-   ;; :fka
-   ;; ["aerojet" "general" :corporation]]
-   ```
+``` clj
+(require '[echeon.text :refer [extract-names]])
+(extract-names "Independent School District No. 1 of Tulsa County, Oklahoma a/k/a Tulsa Public School")
+;;[["independent" "school" "district" [:number "1"] "of" "tulsa" "county" "oklahoma"]
+;; :aka
+;; ["tulsa" "public" "school"]]
+(extract-names "Terminix, International Co. Lp.")
+;;[["terminix" :international :company :lp]]
+(extract-names "GenCorp Inc./Aerojet Rocketdyne Inc. (fka Aerojet General Corporation)")
+;;[["gencorp" :incorporated "aerojet" "rocketdyne" :incorporated]
+;; :fka
+;; ["aerojet" "general" :corporation]]
+```
 
 While it may seem ridiculous to use a parser to try and parse free
 text english, we've found that the lobbyists filling out these forms
@@ -176,19 +176,19 @@ possible to get an unambiguous parsing of the fields, it is possible
 to get fairly useful information out of the fields without an undue
 amount of effort.
 
-   ``` sh
-   $ lein with-profile +user,+prod run match extracted-name
-   ```
+``` sh
+$ lein with-profile +user,+prod run match extracted-name
+```
 
 It's also possible to run all of the above steps sequentially.
 
-   ``` sh
-   $ lein with-profile +user,+prod run match extracted-name
-   ```
+``` sh
+$ lein with-profile +user,+prod run match extracted-name
+```
 
 Finally, the match steps save the produced resolutions to disk. This
-   means that running a step more than once will not currently produce
-   better results.
+means that running a step more than once will not currently produce
+better results.
 
 ## Conceptual Framework (UNFINISHED)
 
