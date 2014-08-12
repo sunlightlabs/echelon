@@ -18,8 +18,9 @@
     :beings vector
     :name   vector
     :initial str
+    :number (juxt (constantly :number) str)
     :initials str}
-   (->> [:usa :saint :north-america :numero :and]
+   (->> [:usa :saint :north-america :and]
         (map (juxt identity constantly ))
         (into {}))))
 
@@ -30,7 +31,7 @@
                     s/trim))
 
 (defn extract-names [x]
-  (let [val (deref (future (all-parses (clean x))) 100 :timeout)]
+  (let [val (deref (future (all-parses (clean x))) 1000 :timeout)]
     (condp = val
       :timeout
       (do
@@ -38,7 +39,8 @@
         [])
       []
       (do
-        (println (str "Cannot extract any name: \"" x"\""))
+        (comment
+          (println (str "Cannot extract any name: \"" x"\"")))
         [])
       (do
         (comment
