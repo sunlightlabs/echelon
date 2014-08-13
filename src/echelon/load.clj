@@ -37,7 +37,7 @@
     "March 31, 2011"   (java.util.Date. "03/31/2011")
     "May 31, 2011"   (java.util.Date. "05/31/2011")
     (some->> s
-             (f/parse (f/formatters :date-hour-minute-second))
+             (f/parse (f/formatters :date-time-no-ms))
              (.toDate))))
 
 (defn temp-user []
@@ -199,47 +199,27 @@
 
          ;;covers both reports and registrations
          :lobbying.form/client
-         (let [c (:client m)
-               u (:registration_update m)
+         (let [c (merge (:registration_update m) (:client m))
                client
                {:record/type :lobbying.record/client
                 :record/represents  client-being-id
                 :lobbying.client/name (:client_name c)
 
                 :lobbying.client/description
-                (or (:client_general_description c)
-                    (:client_new_general_description u))
+                (:client_general_description c)
 
                 :lobbying.client/main-address
-                {:address/first-line
-                 (or (:client_address c)
-                     (:client_new_address u))
-                 :address/zipcode
-                 (or (:client_zip c)
-                     (:client_new_zip u))
-                 :address/city
-                 (or (:client_city c)
-                     (:client_new_city u))
-                 :address/state
-                 (or (:client_state c)
-                     (:client_new_state u))
-                 :address/country
-                 (or (:client_country c)
-                     (:client_new_country u))}
+                {:address/first-line (:client_address c)
+                 :address/zipcode    (:client_zip c)
+                 :address/city       (:client_city c)
+                 :address/state      (:client_state c)
+                 :address/country    (:client_country c)}
 
                 :lobbying.client/principal-place-of-business
-                {:address/zipcode
-                 (or (:client_ppb_zip c)
-                     (:client_new_ppb_zip u))
-                 :address/city
-                 (or (:client_ppb_city c)
-                     (:client_new_ppb_city u))
-                 :address/state
-                 (or (:client_ppb_state c)
-                     (:client_new_ppb_state u))
-                 :address/country
-                 (or (:client_ppb_country c)
-                     (:client_new_ppb_country u))}}]
+                {:address/zipcode    (:client_ppb_zip c)
+                 :address/city       (:client_ppb_city c)
+                 :address/state      (:client_ppb_state c)
+                 :address/country    (:client_ppb_country c)}}]
            (if-let [s (:client_state_or_local_government c)]
              (assoc client :lobbying.client/state-or-local-government s)
              client))}]
@@ -294,7 +274,8 @@
          (get-in m [:registrant :registrant_senate_id])
 
          :lobbying.form/amendment
-         (-> m :registration_type :amendment)
+         (or (-> m :registration_type :is_amendment)
+             (-> m :report_type :is_amendment))
 
          :lobbying.registration/new-registrant
          (-> m :registration_type :new_registrant)
@@ -419,14 +400,11 @@
         report  {:record/type :lobbying.record/report
 
                  :lobbying.report/year
-                 (java.lang.Long. (:report_year m))
+                 (java.lang.Long. (:year (:report_type m)))
                  :lobbying.report/quarter
-                 (java.lang.Long. (str (nth (:report_quarter m) 1)))
+                 (java.lang.Long. (str (nth (:quarter (:report_type m)) 1)))
 
-                 :lobbying.form/amendment
-                 (-> m :report_is_amendment)
-
-                 :lobbying.report/no-activity (:report_no_activity m)
+                 :lobbying.report/no-activity (:no_activity (:report_type m))
 
                  :lobbying.report/house-id
                  (:client_registrant_house_id m)
@@ -514,10 +492,10 @@
         i (atom 0)]
     (doseq [result (->> (report-jsons)
                         (filter #(and (-> % second :client :client_name nil? not)
-                                      (-> % second :report_quarter nil? not)))
+                                      (-> % second :report_type :quarter nil? not)))
                         (map (partial apply report-datoms))
                         (filter (complement contains-nil?))
-                        (pmap (partial d/transact-async conn)))]
+                        (map (partial d/transact-async conn)))]
       (when (= 0 (mod (swap! i inc) 1000))
         (info (str (/ @i c) " reports loaded")))
       (try @result
