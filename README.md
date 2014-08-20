@@ -190,12 +190,9 @@ Finally, the match steps save the produced resolutions to disk. This
 means that running a step more than once will not currently produce
 better results.
 
-## Conceptual Framework (UNFINISHED)
-
 ## Challenges
 
-1. Documentation around the entity resolution framework,
-   i.e. finishing the Conceptual Framework section above.
+1. Outline the being representations and what they mean.
 2. Documentation of the choices made concerning document representation.
 3. Discovering better metrics for how well the resolution steps have done.
 4. Writing better resolutions steps and expanding how well the parser

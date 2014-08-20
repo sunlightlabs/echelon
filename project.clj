@@ -16,7 +16,7 @@
   :profiles {:dev
              [:user {:jvm-opts ["-Xmx4g" "-Xms1g"]}]
              :prod
-             [:user {:jvm-opts ["-Xmx20g" "-Xms5g" "-server"
+             [:user {:jvm-opts ["-Xmx15g" "-Xms5g" "-server"
                                 "-agentpath:/home/zmaril/software/yjp-2013-build-13088/bin/linux-x86-64/libyjpagent.so"]}]}
 
   :main echelon.core)
