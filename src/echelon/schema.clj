@@ -87,10 +87,10 @@
   (keyword (str "lobbying.issue-code/" code)))
 
 (def issue-code-attributes
-  (for [[code description] issue-codes]
+  (for [[code doc] issue-codes]
     {:db/id (tempid :db.part/user)
-     :db/ident (keyword (str "lobbying.issue-code/" code))
-     :db/doc (str "Code for activities relating to \"" description "\".")}))
+     :db/ident (string->issue-code code)
+     :db/doc doc}))
 
 ;;Helper functions for datomic. We're not doing too many fancy things
 ;;here with datomic and the main struggle has just been understanding
@@ -414,6 +414,22 @@
    (ref-props       :lobbying.report/added-lobbying-issues
                     "Added lobbying issues.")])
 
+(def parsed-attributes
+  [(indexed-string-prop
+    :parsed/name
+    "This property is the result of using extract-names and str on the
+     names of the various types of records. Although extract-names can
+     return several different names, each indexed attribute in datomic
+     can only have one value. Thus, in a wonderful hack, we call
+     rand-nth on the extracted names. Most of the time this will mean
+     that the only element in the list is selected and everything is
+     fine. Any other time, it means that one of the elements from the
+     list is selected to represent it in the index. This would
+     normally suck, but because we are doing entity resolution, we can
+     easily recover any of the other representations that are linked
+     to it. So, you should only use this attribute when you are
+     looking for beings not records.")])
+
 (def schema
   (vec (concat data-attributes
                issue-code-attributes
@@ -428,4 +444,5 @@
                activity-attributes
                common-form-attributes
                registration-form-attributes
-               report-form-attributes)))
+               report-form-attributes
+               parsed-attributes)))

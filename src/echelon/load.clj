@@ -1,7 +1,7 @@
 (ns echelon.load
   (:require [datomic.api :as d :refer [db q]]
             [clojure.data.json :as json]
-            [echelon.text :refer [clean]]
+            [echelon.text :refer [clean extract-names]]
             [echelon.schema :refer [schema string->issue-code]]
             [echelon.util :refer [contains-nil? transpose db-prn]]
             [me.raynes.fs :as fs]
@@ -48,6 +48,16 @@
     (java.math.BigDecimal. "0")
     (java.math.BigDecimal. s)))
 
+(defn parse-index!
+  [s]
+  (let [names (extract-names s)]
+    (if (empty? names)
+      s
+      (->> names
+           (map (partial clojure.string/join " "))
+           rand-nth))))
+
+(parse-index! "Google inc.")
 (defn structure-lobbyist
   "Provide structure to a lobbyist within the db, pulling from the
   given map."
@@ -77,6 +87,9 @@
    :data/position i
    :lobbying.affiliated-organization/name
    (:affiliated_organization_name m)
+   :parsed/name
+   (parse-index! (:affiliated_organization_name m))
+
 
    :lobbying.affiliated-organization/main-address
    {:address/first-line
@@ -103,6 +116,9 @@
    :data/position i
    :lobbying.foreign-entity/name
    (:foreign_entity_name m)
+   :parsed/name
+   (parse-index! (:foreign_entity_name m))
+
 
    ;;TODO: What to do with nils for amount/incomes?
    :lobbying.foreign-entity/amount
@@ -179,7 +195,8 @@
                registrant
                (if (r :registrant_name)
                  (assoc basic-registrant
-                   :lobbying.registrant/name (:registrant_name r))
+                   :lobbying.registrant/name  (:registrant_name r)
+                   :parsed/name (parse-index! (:registrant_name r)))
                  (if (r :self_employed_individual)
                    (merge basic-registrant
                           {:lobbying.registrant/prefix
@@ -192,7 +209,9 @@
                            (:registrant_individual_lastname r)})
                    (assoc basic-registrant
                      :lobbying.registrant/organization-name
-                     (:registrant_org_name r))))]
+                     (:registrant_org_name r)
+                     :parsed/name
+                     (parse-index! (:registrant_org_name r)))))]
            (if-let [d (:registrant_general_description r)]
              (assoc registrant :lobbying.registrant/description  d)
              registrant))
@@ -204,6 +223,7 @@
                {:record/type :lobbying.record/client
                 :record/represents  client-being-id
                 :lobbying.client/name (:client_name c)
+                :parsed/name (parse-index! (:client_name c))
 
                 :lobbying.client/description
                 (:client_general_description c)
@@ -253,7 +273,6 @@
         foreign-entities-ids
         (repeatedly (count foreign-entities) temp-user)
 
-
         being-ids
         (concat [(-> basic :lobbying.form/client :record/represents)
                  (-> basic :lobbying.form/contact :record/represents)
@@ -274,9 +293,7 @@
          (get-in m [:registrant :registrant_senate_id])
 
          :lobbying.form/amendment
-         (or (-> m :registration_type :is_amendment)
-             (-> m :report_type :is_amendment))
-
+         (-> m :registration_type :is_amendment)
          :lobbying.registration/new-registrant
          (-> m :registration_type :new_registrant)
          :lobbying.registration/new-client-for-existing-registrant
@@ -477,6 +494,7 @@
   (let [c (count (registration-jsons))
         i (atom 0)]
     (doseq [result (->> (registration-jsons)
+                        (filter (comp not nil? :client_self :client second))
                         (map (partial apply registration-datoms))
                         (filter (complement contains-nil?))
                         (pmap (partial d/transact-async conn)))]

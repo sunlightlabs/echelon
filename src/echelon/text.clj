@@ -30,7 +30,12 @@
                     (s/replace "  " " ")
                     s/trim))
 
-(defn extract-names [x]
+(defn remove-cruft [arg]
+  (if (coll? arg)
+    (filter (partial not= ".") arg)
+    arg))
+
+(defn parse-name [x]
   (let [val (deref (future (all-parses (clean x))) 1000 :timeout)]
     (condp = val
       :timeout
@@ -39,17 +44,31 @@
         [])
       []
       (do
-        (comment
-          (println (str "Cannot extract any name: \"" x"\"")))
+        (println (str "Cannot extract any name: \"" x"\""))
         [])
       (do
         (comment
           (when (not= 1 (count val))
             (println (str "Cannot unambiguously parse: \"" x "\""))))
-        (-> val last transform vec)))))
+        (->> val transform vec (map (partial map remove-cruft)) distinct)))))
 
-(def s (clean "U.S.A.A."))
-(single-parse s)
-(all-parses s :unhide :all)
+(defn extract-name [[first-name & others]]
+  (let [first-name (remove-cruft first-name)
+        others (map remove-cruft others)]
+    (if (some (partial = :obo) others)
+      (->> others
+           (drop-while (partial not= :obo))
+           (drop 1 )
+           extract-name)
+      (->> others
+           (partition 2)
+           (filter (comp #{:fka :dba :aka} first))
+           (map second)
+           (concat [first-name])))))
 
-(extract-names s)
+(defn extract-names [x]
+  (->> (parse-name x)
+       (mapcat extract-name)
+       distinct))
+
+(extract-names "Google inc.")
