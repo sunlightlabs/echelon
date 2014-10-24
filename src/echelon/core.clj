@@ -2,6 +2,7 @@
   (:require [datomic.api :as d :refer [db q]]
             [clojure.pprint :refer [pprint]]
             [echelon.load :refer [load-database! report-jsons registration-jsons]]
+            [echelon.annotate :refer [annotate]]
             [echelon.text :refer [extract-names clean]]
             [echelon.util :refer [group-by-features disjoint-lists db-prn uri]]
             [taoensso.timbre :as timbre]))
@@ -100,13 +101,13 @@
     (db-prn "Printing db status" (db c))))
 
 (defn load-data []
-  (d/delete-database uri)
   (d/create-database uri)
   (let [c (d/connect uri)]
     (info "Loading Database...")
     (load-database! c)
     (info "Loaded!")
     (print-status)))
+
 
 (defn execute-merge-fn [conn dbc f]
   (doseq [result (->> dbc f
@@ -124,13 +125,18 @@
 (defn match-data [args]
   (info "Starting matching process")
   (let [conn (d/connect uri)
-        dbc (db conn)]
+        dbc (db conn)
+        mfs (if (= (first args) "all")
+          ["same-on-form" "exact-name" "extracted-name"]
+          (map match-functions args))]
+
+    (when (some nil? mfs)
+      (throw (Throwable. (str "No match functions found for:" args))))
+
     (print-status)
-    (doseq [kf
-            (if (= (first args) "all")
-              ["same-on-form" "exact-name" "extracted-name"]
-              args)]
-      (execute-merge-fn conn dbc (match-functions kf))
+
+    (doseq [mf mfs]
+      (execute-merge-fn conn dbc mf)
       (print-status))
 
     (info "Saving output")
@@ -155,6 +161,7 @@
 (defn -main [& args]
   (info (str "Running " (first args) " command"))
   (condp = (first args)
+    "annotate" (annotate)
     "load"   (load-data)
     "match"  (match-data (rest args))
     "status" (print-status))
