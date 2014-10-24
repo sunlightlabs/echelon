@@ -8,44 +8,50 @@ name   = token (<whitespace>+ token)* ["."*]
 <simple>  = !(special | splitters | formers | initials) #"[a-z0-9&!'/]+" ["."]
 
 <special> = &(special-helper whitespace) special-helper
-<special-helper> = and | corporates | domain | initials | north-america | number | saint | usa
+<special-helper> = and | corporates | domain | initials | north-america | number | outlier | saint | usa
 
 and = "&" | "and" 
 
-corporates = llc | pllc | llp | lp | incorporated | corporation | limited | company | international | association | foreign 
+corporates = llc | pllc | llp | lp | lpa | corporation | limited | company | international | association | foreign 
 association = "association" | "assn." | "associations" | "association's" | "associations'"
+national = "national" | "nat'l"
 international = "international"
-llc  = "llc" | "lc" | "lcc" | "llc."
-pllc = "pllc"
-llp  = "llp" | "llp."
+llc  = "llc" | "lc" | "lcc" | "llc." | "l.l.c" | "l.l.c."
+pllc = "pllc" | "p.l.l.c" | "p.l.l.c."
+llp  = "llp" | "llp." | "lllp" | "llpp"
 lp =   "lp" | "lp." | "l.p."
-incorporated  = "incorporated" | "inc" | "inc."
-corporation = "corps" | "corporations" | "corporation" | "corp" | "corp."
+lpa = "lpa" | "l.p.a." | "l.p.a"
+corporation = "corps" | "corporations" | "corporation" | "corp" | "corp." | "incorporated" | "inc" | "inc." | "inc ." | "in.c"
 limited = "ltd" | "ltd." | "ltd.."
-company = "company" | "companies" | "co."
+company = "company" | "companies" | "co." | "co"
 foreign = "ltda." 
 
-initials = !(usa | north-america | splitters | corporates) initial+ 
+initials = !(usa | north-america | splitters | corporates) initial+ [#"[a-z]"]
 initial = #"[a-z]" "."
-domain = #'[a-z0-9]+' <"."> ("com" | "org" | "us" | "net")
-north-america = "north america" | "n.a." | "north american"
+domain = [<"www.">] #'[a-z0-9]+' (<"."> ("com" | "org" | "us" | "net" | "il" | "tv" | "cl"))+
+
+north-america = "north america" | &("n.a." whitespace) "n.a." | "north american"
 number = &(number-helper whitespace) number-helper
 <number-helper> = <["no." | "#"]> [<whitespace>] some-digits
-<some-digits> = (digit | two-digits | three-digits) {"," three-digits} {digit}
+<some-digits> = (digit | two-digits | three-digits) {"," three-digits} {digit} {"." digit*}
 <two-digits> = digit digit
 <three-digits> = digit digit digit 
 <digit> = #"[0-9]"
-saint = "st." | "saint" | "saints"
+<outlier> = "e.on" | "lch.clearnet"
+saint = "st." | "saint" | "saints" | "st." simple
 usa = &("u.s." whitespace) "u.s." | &("u.s.a" whitespace) "u.s.a" | &("u.s.a." whitespace) "u.s.a."
 
 
-splitters = fka  | aka
-fka = "fka" | "f.k.a." | "f/k/a/" |  simple-fka  | complex-fka
+
+splitters = fka  | aka | obo
+fka = "fka" | "f.k.a." | "f/k/a/" |  "f/k/a" | simple-fka  | complex-fka | "f.k.a"
 <simple-fka>  = !complex-fka formers
 <complex-fka> = formers <whitespace> fka-verbs [<whitespace> "as"]
-<formers> = "formerly" | "formelry" | "formarly" | "frmly" | "frly"
-<fka-verbs> = "registered" | "filed" | "reported" | "known" | "know" | "field"
+<formers> = "formerly" | "formelry" | "formarly" | "frmly" | "frly" | "previously" | "prev."
+<fka-verbs> = "registered" | "filed" | "reported" | "known" | "know" | "field" | "reporting" | "filing"  | "knows"
 
 aka = "a/k/a" | "a.k.a." | "also known as"
 
-whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$' | '\"' | '/' | '*' | '=' | '>' | '+' | '[' | ']' | '_' | '$'
+obo = "on behalf of"
+
+whitespace = ' ' | ',' | '-' | '(' | ')' | ':' | #'$' | '\"' | '/' | '*' | '=' | '>' | '+' | '[' | ']' | '_' | '$' | '\n' | '%'  | '\\' | '@' | ';' | '|' | '?' | ':'
