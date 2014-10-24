@@ -5,7 +5,7 @@
             [taoensso.timbre :as timbre]))
 (timbre/refer-timbre)
 
-(def uri "datomic:free://localhost:4334/echelon")
+(def uri "datomic:dev://127.0.0.1:4334/echelon")
 
 (defn group-by-features
   "Like group-by, but inserts values multiple times based on f
@@ -78,10 +78,45 @@
               [k (reduce + (map second v))]))
        (into {})))
 
-
-
 (defn db-prn
   [stage dbc]
   (info stage)
   (info (how-many? dbc))
   dbc)
+
+(defn breakout [vs]
+  (->> (group-by first vs)
+       (map (fn [[k v]]
+              [k  (let [rst (distinct (map rest v))]
+                    (if (= 1 (count (first rst)))
+                      (apply concat rst)
+                      (breakout rst)))]))
+       (into {})))
+
+(defn prune [m]
+  (->> m
+       (map
+        (fn [[k vs]]
+          (if (seq? vs)
+            (if (= 1 (count vs))
+              [k (first vs)]
+              [k vs])
+            [k (prune vs)])))
+       (into {})))
+
+(defn modify [d f m]
+  (->> m
+       (map (fn [[k v]]
+              (if (= 0 d)
+                (f k v)
+                [k (modify (dec d) f v)])))
+       (into {})))
+
+(->> [[:a :b 1]
+      [:a :b 2]
+      [:a :c 3]
+      [:a :c 4]]
+     breakout
+     (modify 0 (fn [k v] [(name k) v]))
+     (modify 1 (fn [k v] [(first (name k) ) v]))
+     )

@@ -11,12 +11,15 @@
                  [org.jordanlewis/data.union-find "0.1.0"]
                  [clj-time "0.7.0"]
                  [environ "0.5.0"]
-                 [com.taoensso/timbre "3.2.1"]]
+                 [com.taoensso/timbre "3.2.1"]
+                 [incanter "1.5.5"]
+                 [com.datomic/datomic-pro "0.9.4956"]]
   :plugins [[lein-environ "0.5.0"]]
   :profiles {:dev
              [:user {:jvm-opts ["-Xmx4g" "-Xms1g"]}]
              :prod
              [:user {:jvm-opts ["-Xmx15g" "-Xms5g" "-server"
-                                "-agentpath:/home/zmaril/software/yjp-2013-build-13088/bin/linux-x86-64/libyjpagent.so"]}]}
+;                                "-agentpath:/home/zmaril/software/yjp-2013-build-13088/bin/linux-x86-64/libyjpagent.so"
+                                ]}]}
 
   :main echelon.core)
