@@ -74,11 +74,25 @@
    (s/replace f "sopr_html" "annotated")
    (json/write-str (annotate-report dbc m))))
 
+(defn write-registration [dbc [f m]]
+  (spit
+   (s/replace f "sopr_html" "annotated")
+   (json/write-str (annotate-registration dbc m))))
+
 (defn annotate []
-  (->> (report-jsons)
-       (map (partial write-report (db (d/connect uri)) ))
+  (->> (registration-jsons)
+       (pmap (partial write-registration (db (d/connect uri)) ))
        doall
-       count))
+       count
+       (str "Annotated registrations: ")
+       println)
+  (->> (report-jsons)
+       (pmap (partial write-report (db (d/connect uri)) ))
+       doall
+       count
+       (str "Annotated reports: ")
+       println)
+  )
 
 ;; (let [dbc (db (d/connect uri))]
 ;;   (->> (registration-jsons)
