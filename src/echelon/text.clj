@@ -4,11 +4,11 @@
             [taoensso.timbre :as timbre]))
 (timbre/refer-timbre)
 
-(def single-parse
+(def parser
   (insta/parser (slurp "src/echelon/parser.bnf")))
 
 (def all-parses
-  (partial insta/parses single-parse))
+  (partial insta/parses parser))
 
 (def transform-mapping
   (merge
