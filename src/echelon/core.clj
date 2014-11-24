@@ -21,8 +21,8 @@
           adds    (mapv #(vector :db/add (ffirst %) :record/represents b1)
                         records)
           retracts (map #(vector :db.fn/retractEntity %) b2s)
-          data (vec (concat adds retracts))]
-      data)))
+          datoms (vec (concat adds retracts))]
+      datoms)))
 
 (def rules
   '[[(name-of ?record ?name)
@@ -52,8 +52,7 @@
        (filter #(< 1 (count %)))
        (map (partial map first))
        disjoint-lists
-       (mapcat (partial merges-for-beings dbc))
-       vec))
+       (mapv (partial merges-for-beings dbc))))
 
 
 (defn same-client-registrant-merge-datoms [dbc]
@@ -73,8 +72,7 @@
                      (represents ?registrant ?registrant-being)]
                    dbc
                    rules)
-              (mapcat (partial merges-for-beings dbc))
-              vec)]
+              (mapv (partial merges-for-beings dbc)))]
     (info "Datoms produced for sames merges")
     datoms))
 
@@ -108,12 +106,9 @@
     (info "Loaded!")
     (print-status)))
 
-
-(defn execute-merge-fn [conn dbc f]
-  (doseq [result (->> dbc f
-                      (partition-all 1)
-                      (pmap (partial d/transact conn)))]
-    (try @result
+(defn execute-merge-fn [conn f]
+  (doseq [datoms (f (db conn))]
+    (try @(d/transact-async conn datoms)
          (catch Exception e
            (throw e)))))
 
@@ -126,17 +121,18 @@
   (info "Starting matching process")
   (let [conn (d/connect uri)
         dbc (db conn)
-        mfs (if (= (first args) "all")
-          ["same-on-form" "exact-name" "extracted-name"]
-          (map match-functions args))]
+        args (if (= (first args) "all")
+               ["same-on-form" "exact-name" "extracted-name"]
+               args)
+        mfs (map match-functions args)]
 
     (when (some nil? mfs)
       (throw (Throwable. (str "No match functions found for:" args))))
 
-    (print-status)
+    ;(print-status)
 
     (doseq [mf mfs]
-      (execute-merge-fn conn dbc mf)
+      (execute-merge-fn conn mf)
       (print-status))
 
     (info "Saving output")
