@@ -11,16 +11,14 @@
 (defn merges-for-beings [dbc [b1 & b2s :as beings]]
   (if (= 1 (count (distinct beings)))
     []
-    (let [records (map
-                   #(d/q '[:find ?record
-                           :in $ ?being
-                           :where [?record :record/represents ?being]]
-                         dbc
-                         %)
-                   b2s)
-          adds    (mapv #(vector :db/add (ffirst %) :record/represents b1)
+    (let [records (d/q '[:find ?record
+                         :in $ [?being ...]
+                         :where [?record :record/represents ?being]]
+                       dbc
+                       b2s)
+          adds    (mapv #(vector :db/add (first %) :record/represents b1)
                         records)
-          retracts (map #(vector :db.fn/retractEntity %) b2s)
+          retracts (mapv #(vector :db.fn/retractEntity %) b2s)
           datoms (vec (concat adds retracts))]
       datoms)))
 
