@@ -7,6 +7,7 @@
                  [com.datomic/datomic-free "0.9.5067"]
                  [org.clojure/data.json "0.2.5"]
                  [me.raynes/fs "1.4.4"]
+                 [com.rpl/specter "0.0.6"]
                  [instaparse "1.3.2"]
                  [org.jordanlewis/data.union-find "0.1.0"]
                  [clj-time "0.7.0"]
