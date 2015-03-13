@@ -12,6 +12,7 @@ name   = token (<whitespace>+ token)* ["."*]
 
 and = "&" | "and" 
 
+(*Canocilaization of org names*)
 corporates = llc | pllc | llp | lp | lpa | corporation | limited | company | international | association | foreign 
 association = "association" | "assn." | "associations" | "association's" | "associations'"
 national = "national" | "nat'l"
@@ -26,10 +27,12 @@ limited = "ltd" | "ltd." | "ltd.."
 company = "company" | "companies" | "co." | "co"
 foreign = "ltda." 
 
+(*Dealing with edges cases around domains & initials)
 initials = !(usa | north-america | splitters | corporates) initial+ [#"[a-z]"]
 initial = #"[a-z]" "."
 domain = [<"www.">] #'[a-z0-9]+' (<"."> ("com" | "org" | "us" | "net" | "il" | "tv" | "cl"))+
 
+(*More shorthands *)
 north-america = "north america" | &("n.a." whitespace) "n.a." | "north american"
 number = &(number-helper whitespace) number-helper
 <number-helper> = <["no." | "#"]> [<whitespace>] some-digits
@@ -42,7 +45,7 @@ saint = "st." | "saint" | "saints" | "st." simple
 usa = &("u.s." whitespace) "u.s." | &("u.s.a" whitespace) "u.s.a" | &("u.s.a." whitespace) "u.s.a."
 
 
-
+(*Extraction for also known as, formely known as, and on behalf of relationships*)
 splitters = fka  | aka | obo
 fka = "fka" | "f.k.a." | "f/k/a/" |  "f/k/a" | simple-fka  | complex-fka | "f.k.a"
 <simple-fka>  = !complex-fka formers
