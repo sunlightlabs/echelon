@@ -1,20 +1,17 @@
 (ns echelon.simple
- (:require  [clojure.data.json :as json]
+  (:gen-class)
+  (:require  [clojure.data.json :as json]
             [echelon.text :refer [clean extract-names]]
-            [echelon.util :refer [contains-nil? transpose db-prn]]
             [clojure.pprint :refer [pprint]]
-            [clj-time.format :as f]
+            [clojure.tools.cli :refer [parse-opts]]
             [jordanlewis.data.union-find :refer :all]
-            [environ.core :refer [env]]
             [com.rpl.specter :refer :all]
             [taoensso.timbre :as timbre]) )
 
 
-(def datadir "/home/zmaril/Downloads/json_dump")
-(def organizations-json-file (str datadir "/organizations.json"))
-(def people-jsons-file (str datadir "/people.json"))
-(defn organizations-json [] (map #(json/read-str % :key-fn keyword)
-                                 (line-seq (clojure.java.io/reader organizations-json-file))))
+(defn read-jsons-file [file]
+  (map #(json/read-str % :key-fn keyword)
+       (line-seq (clojure.java.io/reader file))))
 
 (defn union-lst
   [uf lst]
@@ -32,19 +29,44 @@
 (defn date-str->int [s]
   (.getTime (clojure.instant/read-instant-date s)))
 
-(defn test-fn []
-  (let [name-id-date (organizations-json)
+(defn invert-index [m k1 k2]
+  (into {} (map (juxt k1 k2) m)))
 
-        id-date
-        (into {} (map (juxt :id :created_at) name-id-date))
+(defn cluster-names [m]
+  (let [id-date (invert-index m :id :created_at)
+        id-name (invert-index m :id :name)
 
         clustered-names
-        (->> name-id-date
+        (->> m 
              (update [ALL :name] extract-names)
              (reduce (fn [group {id :id extracted-names :name}]
                        (reduce #(merge-with concat %1 {%2 [id]}) group
-                               extracted-names)) {}) vals cluster)]
-    (map (juxt (fn [lst]
+                               extracted-names)) {}) vals cluster)
+        clustered-ids
+        (map (juxt (fn [lst]
                  (apply min-key (comp date-str->int id-date) lst))
                identity)
-         clustered-names)))
+             clustered-names)]
+    (->> clustered-ids
+         (filter #(< 1 (count (second %))))
+         (map #(hash-map :main-id (first %1) :cluster-ids (second %1))))))
+
+#_(->> clustered-ids 
+         (update [ALL (keypath 1) ALL] id-name)
+         (map (comp distinct second))
+         (filter #(> (count %) 1)))
+#_(cluster-names (read-jsons-file "/home/zmaril/Downloads/json_dump/organizations.json"))
+(def cli-options
+  [["-i" "--organizations-input ORGANIZATIONS_JSON_FILE" "Input file containing organizations in ocd/json"
+    :id :org-input ]
+   ["-o" "--organizations-output ORGANIZATIONS_JSON_FILE" "Output file containing"
+    :id :org-output]])
+
+(defn -main [& args]
+  (let [{:keys [org-input org-output] :as m} (:options (parse-opts args cli-options))]
+    (->> org-input
+         read-jsons-file
+         cluster-names
+         json/write-str
+         (spit org-output))))
+#_(-main "-i" "/home/zmaril/Downloads/json_dump/organizations.json" "-o" "output.json")
