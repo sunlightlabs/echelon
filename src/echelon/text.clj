@@ -43,11 +43,11 @@
       :timeout
       (do
         (println (str "Cannot extract name quickly: \"" x"\""))
-        [])
+        [[x]])
       []
       (do
         (println (str "Cannot extract any name: \"" x"\""))
-        [])
+        [[[x]]])
       (do
         (comment
           (when (not= 1 (count val))
@@ -73,4 +73,6 @@
        (mapcat extract-name)
        distinct))
 
-(extract-names "Google inc.")
+[(extract-names "working name")
+ (extract-names "not.working")
+ (extract-names "too slow                                                                     ")]
