@@ -1,11 +1,13 @@
 (ns echelon.text
   (:require [instaparse.core :as insta]
             [clojure.string :as s]
+            [clojure.java.io :as io]
             [taoensso.timbre :as timbre]))
+
 (timbre/refer-timbre)
 
 (def single-parse
-  (insta/parser (slurp "src/echelon/parser.bnf")))
+  (-> "parser.bnf" io/resource slurp insta/parser))
 
 (def all-parses
   (partial insta/parses single-parse))

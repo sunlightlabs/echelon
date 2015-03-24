@@ -27,7 +27,7 @@ limited = "ltd" | "ltd." | "ltd.."
 company = "company" | "companies" | "co." | "co"
 foreign = "ltda." 
 
-(*Dealing with edges cases around domains & initials)
+(*Dealing with edges cases around domains & initials*)
 initials = !(usa | north-america | splitters | corporates) initial+ [#"[a-z]"]
 initial = #"[a-z]" "."
 domain = [<"www.">] #'[a-z0-9]+' (<"."> ("com" | "org" | "us" | "net" | "il" | "tv" | "cl"))+
